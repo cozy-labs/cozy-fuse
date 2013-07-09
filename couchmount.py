@@ -8,8 +8,8 @@
 # you should have received as part of this distribution.
 
 
-from couchdb import Database, Document, ResourceNotFound, Row, Server, \
-    ViewResults
+from couchdb import Database, Document, ResourceNotFound, Server
+from couchdb.client import Row, ViewResults
 import errno
 import fuse
 import os
@@ -50,6 +50,9 @@ class CouchFSDocument(fuse.Fuse):
         self.db = Database(db_uri)
 
     def get_dirs(self):
+        """
+        Get directories
+        """
         dirs = {}
         attachments = self.db[self.doc_id].get('_attachments', {}).keys()
         for att in attachments:
@@ -62,6 +65,9 @@ class CouchFSDocument(fuse.Fuse):
         return dirs
 
     def readdir(self, path, offset):
+        """
+        Read directories
+        """
         path = _normalize_path(path)
         for r in '.', '..':
             yield fuse.Direntry(r)
@@ -69,6 +75,9 @@ class CouchFSDocument(fuse.Fuse):
             yield fuse.Direntry(name.encode('utf-8'))
 
     def getattr(self, path):
+        """
+        Get Attr
+        """
         path = _normalize_path(path)
         try:
             st = CouchStat()
@@ -86,6 +95,9 @@ class CouchFSDocument(fuse.Fuse):
             return -errno.ENOENT
 
     def open(self, path, flags):
+        """
+        Open file
+        """
         path = _normalize_path(path)
         try:
             #data = self.db.get_attachment(self.db[self.doc_id], path.split('/')[-1])
@@ -106,37 +118,57 @@ class CouchFSDocument(fuse.Fuse):
         #    return -errno.EACCES
 
     def read(self, path, size, offset):
+        """
+        Read file
+        """
         path = _normalize_path(path)
         try:
-            data = self.db.get_attachment(self.db[self.doc_id], path)
-            slen = len(data)
-            if offset < slen:
-                if offset + size > slen:
-                    size = slen - offset
-                buf = data[offset:offset+size]
+            data = self.db.get_attachment(self.doc_id, path)
+            if data == None:
+                return ''
             else:
-                buf = ''
-            return buf
+                contain = data.read()
+                slen = len(contain)
+                if offset < slen:
+                    if offset + size > slen:
+                        size = slen - offset
+                    buf = contain[offset:offset+size]
+                else:
+                    buf = ''
+                return buf
         except (KeyError, ResourceNotFound):
             pass
         return -errno.ENOENT
 
     def write(self, path, buf, offset):
+        """
+        Write data in file
+        """
         path = _normalize_path(path)
         try:
-            data = self.db.get_attachment(self.db[self.doc_id], path)
-            data = data[0:offset] + buf + data[offset+len(buf):]
-            self.db.put_attachment(self.db[self.doc_id], data, filename=path)
+            data = self.db.get_attachment(self.doc_id, path)
+            if data == None:
+                self.db.put_attachment(self.db[self.doc_id], buf, filename=path)
+            else:
+                contain = data.read()
+                contain = contain[0:offset] + buf + contain[offset+len(buf):]
+                self.db.put_attachment(self.db[self.doc_id], contain, filename=path)
             return len(buf)
         except (KeyError, ResourceNotFound):
             pass
         return -errno.ENOENT
 
     def mknod(self, path, mode, dev):
+        """
+        Create special/ordinary file
+        """
         path = _normalize_path(path)
-        self.db.put_attachment(self.db[self.doc_id], u'', filename=path)
+        self.db.put_attachment(self.db[self.doc_id], '', filename=path)
 
     def unlink(self, path):
+        """
+        Remove file
+        """
         path = _normalize_path(path)
         parts = path.rsplit(u'/', 1)
         if len(parts) == 1:
@@ -149,16 +181,21 @@ class CouchFSDocument(fuse.Fuse):
             self.db.put_attachment(self.db[self.doc_id], u'', filename=u'%s/%s' % (dirname, COUCHFS_DIRECTORY_PLACEHOLDER))
 
     def truncate(self, path, size):
+        f = open(path)
         path = _normalize_path(path)
-        self.db.put_attachment(self.db[self.doc_id], u'', filename=path)
+        self.db.put_attachment(self.db[self.doc_id], f, filename=path)
+        f.close()
         return 0
 
     def utime(self, path, times):
         return 0
 
     def mkdir(self, path, mode):
+        """
+        Create directory
+        """
         path = _normalize_path(path)
-        self.db.put_attachment(self.db[self.doc_id], u'', filename=u'%s/%s' % (path, COUCHFS_DIRECTORY_PLACEHOLDER))
+        self.db.put_attachment(self.db[self.doc_id], '', filename=u'%s/%s' % (path, COUCHFS_DIRECTORY_PLACEHOLDER))
         return 0
 
     def rmdir(self, path):
@@ -167,8 +204,11 @@ class CouchFSDocument(fuse.Fuse):
         return 0
 
     def rename(self, pathfrom, pathto):
+        """
+        Rename file
+        """
         pathfrom, pathto = _normalize_path(pathfrom), _normalize_path(pathto)
-        data = self.db.get_attachment(self.db[self.doc_id], pathfrom)
+        data = self.db.get_attachment(self.doc_id, pathfrom)
         self.db.put_attachment(self.db[self.doc_id], data, filename=pathto)
         self.db.delete_attachment(self.db[self.doc_id], pathfrom)
         return 0
@@ -185,7 +225,7 @@ class CouchFSDocument(fuse.Fuse):
             - availblocks - number of blocks available to non-superuser
             - totalfiles - total number of file inodes
             - freefiles - nunber of free file inodes
-    
+
         Feel free to set any of the above values to 0, which tells
         the kernel that the info is not available.
         """
@@ -212,6 +252,7 @@ class CouchFS(fuse.Fuse):
     def __init__(self, mountpoint, uri=None, *args, **kw):
         fuse.Fuse.__init__(self, *args, **kw)
         self.fuse_args.mountpoint = mountpoint
+        print 'mountpoint: %s' %mountpoint
         if uri is not None:
             self.server = Server(uri)
         else:
@@ -312,6 +353,7 @@ class CouchFS(fuse.Fuse):
     def open(self, path, flags):
         try:
             attr = self.getcouchattrs(path)[-1]
+            print(attr)
         except (KeyError, ResourceNotFound):
             return -errno.ENOENT
         accmode = os.O_RDONLY | os.O_WRONLY | os.O_RDWR
@@ -346,6 +388,7 @@ class CouchFS(fuse.Fuse):
             server.create(path.split('/')[-1])
 
 def main():
+    print "MAIN"
     args = sys.argv[1:]
     if len(args) not in (2, 3):
         print "CouchDB FUSE Connector: Allows you to browse the _attachments of"
@@ -357,10 +400,13 @@ def main():
         sys.exit(-1)
 
     if len(args) == 1:
+        print "1"
         fs = CouchFS(args[0])
     elif len(args) == 2:
+        print "2"
         fs = CouchFSDocument(args[1], args[0])
     elif len(args) == 3:
+        print "3"
         fs = CouchFSDocument(args[2], args[1])
 
     fs.parse(errex=1)
