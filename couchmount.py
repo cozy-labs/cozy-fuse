@@ -47,31 +47,27 @@ class CouchFSDocument(fuse.Fuse):
         fuse.Fuse.__init__(self, *args, **kwargs)
         db_uri = uri
         self.db = Database(db_uri)
+        #self.db["_design/file"] = {"views": {"all": {"map": "function (doc) {\n    emit(doc.id, doc) \n}"}}}
 
     def get_dirs(self):
         """
         Get directories
         """
-        print "get_dirs"
         dirs = {}
-        for res in self.db.view("_all_docs"):
-            print "res: %s" %res
-            att = res.id
-            print "att: %s" %att
+        for res in self.db.view("file/all"):
+            att = res.value["slug"]
             parents = [u'']
             for name in att.split('/'):
                 filenames = dirs.setdefault(u'/'.join(parents[1:]), set())
                 if name != COUCHFS_DIRECTORY_PLACEHOLDER:
                     filenames.add(name)
                     parents.append(name)
-        print "dirs: %s" %dirs
         return dirs
 
     def readdir(self, path, offset):
         """
         Read directories
         """
-        print "readdir"
         path = _normalize_path(path)
         for r in '.', '..':
             yield fuse.Direntry(r)
@@ -82,7 +78,6 @@ class CouchFSDocument(fuse.Fuse):
         """
         Get Attr
         """
-        print "getattr"
         path = _normalize_path(path)
         try:
             st = CouchStat()
@@ -90,13 +85,20 @@ class CouchFSDocument(fuse.Fuse):
                 st.st_mode = stat.S_IFDIR | 0775
                 st.st_nlink = 2
             else:
-                att = self.db[path].get('_attachments', {})
-                print "att: %s" %att
-                data = att[path]
-                print "data: %s" %data
-                st.st_mode = stat.S_IFREG | 0664
-                st.st_nlink = 1
-                st.st_size = data['length']
+                exist = "false"
+                for res in self.db.view("file/all"):
+                    if res.value["slug"] == path:
+                        exist = "true"
+                        print "res: %s" %res
+                        att = self.db[res.id].get('_attachments', {})
+                        print "att: %s" %att
+                        data = att[path]
+                        print "data: %s" %data
+                        st.st_mode = stat.S_IFREG | 0664
+                        st.st_nlink = 1
+                        st.st_size = data['length']
+                if exist == "false":
+                    return -errno.ENOENT
             return st
         except (KeyError, ResourceNotFound):
             return -errno.ENOENT
@@ -105,9 +107,7 @@ class CouchFSDocument(fuse.Fuse):
         """
         Open file
         """
-        print "open"
         path = _normalize_path(path)
-        print "path: %s" %path
         try:
             #data = self.db.get_attachment(self.db[path], path.split('/')[-1])
             #att = self.db[path].get('_attachments', {})
@@ -130,24 +130,23 @@ class CouchFSDocument(fuse.Fuse):
         """
         Read file
         """
-        print 'read'
         path = _normalize_path(path)
-        print "path: %s" %path
         try:
-            data = self.db.get_attachment(path, path)
-            print "data: %s" %data
-            if data == None:
-                return ''
-            else:
-                contain = data.read()
-                slen = len(contain)
-                if offset < slen:
-                    if offset + size > slen:
-                        size = slen - offset
-                    buf = contain[offset:offset+size]
-                else:
-                    buf = ''
-                return buf
+            for res in self.db.view("file/all"):
+                if res.value["slug"] == path:
+                    data = self.db.get_attachment(res.id, path)
+                    if data == None:
+                        return ''
+                    else:
+                        contain = data.read()
+                        slen = len(contain)
+                        if offset < slen:
+                            if offset + size > slen:
+                                size = slen - offset
+                            buf = contain[offset:offset+size]
+                        else:
+                            buf = ''
+                        return buf
         except (KeyError, ResourceNotFound):
             pass
         return -errno.ENOENT
@@ -156,20 +155,18 @@ class CouchFSDocument(fuse.Fuse):
         """
         Write data in file
         """
-        print "write"
         path = _normalize_path(path)
-        print "path: %s" %path
         try:
-            data = self.db.get_attachment(path, path)
-            print "data: %s" %data
-            if data == None:
-                print "doc: %s" %self.db[path]
-                self.db.put_attachment(self.db[path], buf, filename=path)
-            else:
-                contain = data.read()
-                contain = contain[0:offset] + buf + contain[offset+len(buf):]
-                self.db.put_attachment(self.db[path], contain, filename=path)
-            return len(buf)
+            for res in self.db.view("file/all"):
+                if res.value["slug"] == path:
+                    data = self.db.get_attachment(self.db[res.id], path)
+                    if data == None:
+                        self.db.put_attachment(self.db[res.id], buf, filename=path)
+                    else:
+                        contain = data.read()
+                        contain = contain[0:offset] + buf + contain[offset+len(buf):]
+                        self.db.put_attachment(self.db[res.id], contain, filename=path)
+                    return len(buf)
         except (KeyError, ResourceNotFound):
             pass
         return -errno.ENOENT
@@ -178,75 +175,77 @@ class CouchFSDocument(fuse.Fuse):
         """
         Create special/ordinary file
         """
-        print "mknod"
         path = _normalize_path(path)
-        self.db[path] = {"name": path}
-        self.db.put_attachment(self.db[path], '', filename=path)
+        id_doc = self.db.create({"name": path, "slug":path})
+        self.db.put_attachment(self.db[id_doc], '', filename=path)
 
     def unlink(self, path):
         """
         Remove file
         """
-        print "unlink"
         path = _normalize_path(path)
         parts = path.rsplit(u'/', 1)
         if len(parts) == 1:
             dirname, filename = u'', parts[0]
         else:
             dirname, filename = parts
-        self.db.delete(self.db[path])
-        if filename != COUCHFS_DIRECTORY_PLACEHOLDER and len(self.get_dirs().get(dirname, [])) == 0:
-            print "putting to:", u'%s/%s' % (dirname, COUCHFS_DIRECTORY_PLACEHOLDER)
-            self.db.put_attachment(self.db[path], u'', filename=u'%s/%s' % (dirname, COUCHFS_DIRECTORY_PLACEHOLDER))
+        for res in self.db.view("file/all"):
+            if res.value["slug"] == path:
+                self.db.delete(self.db[res.id])
+                if filename != COUCHFS_DIRECTORY_PLACEHOLDER and len(self.get_dirs().get(dirname, [])) == 0:
+                    print "putting to:", u'%s/%s' % (dirname, COUCHFS_DIRECTORY_PLACEHOLDER)
+                    self.db.put_attachment(self.db[res.id], u'', filename=u'%s/%s' % (dirname, COUCHFS_DIRECTORY_PLACEHOLDER))
 
     def truncate(self, path, size):
-        print "truncate"
-        f = open(path)
-        path = _normalize_path(path)
-        self.db.put_attachment(self.db[path], f, filename=path)
-        f.close()
+        for res in self.db.view("file/all"):
+            if res.value["slug"] == path:
+                f = open(path)
+                path = _normalize_path(path)
+                self.db.put_attachment(self.db[res.id], f, filename=path)
+                f.close()
         return 0
 
     def utime(self, path, times):
-        print "utime"
         return 0
 
     def mkdir(self, path, mode):
         """
         Create directory
         """
-        print "mkdir"
         path = _normalize_path(path)
         name = '%s/%s' % (path, COUCHFS_DIRECTORY_PLACEHOLDER)
-        self.db[name] = {"name": name}
-        self.db.put_attachment(self.db[name], '', filename=u'%s/%s' % (path, COUCHFS_DIRECTORY_PLACEHOLDER))
+        id_doc = self.db.create({"name": name, "slug":name})
+        self.db.put_attachment(self.db[id_doc], '', filename=u'%s/%s' % (path, COUCHFS_DIRECTORY_PLACEHOLDER))
         return 0
 
     def rmdir(self, path):
-        print "rmdir"
+        """
+        Remove directory
+        """
         path = _normalize_path(path)
         name = '%s/%s' % (path, COUCHFS_DIRECTORY_PLACEHOLDER)
-        self.db.delete(self.db[name])
-        return 0
+        for res in self.db.view("file/all"):
+            if res.value["slug"] == name:
+                self.db.delete(self.db[res.id])
+                return 0
 
     def rename(self, pathfrom, pathto):
         """
         Rename file
         """
-        print "rename"
         pathfrom, pathto = _normalize_path(pathfrom), _normalize_path(pathto)
-        data = self.db.get_attachment(pathfrom, pathfrom)
-        self.db.delete(self.db[pathfrom])
-        self.db[pathto] = {"name": pathto}
-        self.db.put_attachment(self.db[pathto], data, filename=pathto)
-        return 0
+        for res in self.db.view("file/all"):
+            if res.value["slug"] == pathfrom:
+                data = self.db.get_attachment(res.id, pathfrom)
+                self.db.delete(self.db[res.id])
+                id_doc = self.db.create({"name": pathto, "slug":pathto})
+                self.db.put_attachment(self.db[id_doc], data, filename=pathto)
+                return 0
 
     def fsync(self, path, isfsyncfile):
-        print "fsync"
         return 0
 
     def statfs(self):
-        print "statfs"
         """
         Should return a tuple with the following 6 elements:
             - blocksize - size of file blocks, in bytes
