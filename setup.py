@@ -13,16 +13,13 @@ except ImportError:
     from distutils.core import setup
 
 setup(
-    name = 'CouchDB-FUSE',
+    name = 'Cozy-CouchDB-FUSE',
     version = '0.1',
     description = 'CouchDB FUSE module',
     long_description = \
 """This is a Python FUSE module for CouchDB.  It allows CouchDB document
 attachments to be mounted on a virtual filesystem and edited directly.""",
-    author = 'Jason Davies',
-    author_email = 'jason@jasondavies.com',
-    license = 'BSD',
-    url = 'http://code.google.com/p/couchdb-fuse/',
+    url = 'https://github.com/poupotte/couchdb-fuse',
     zip_safe = True,
 
     py_modules = ['couchmount'],
