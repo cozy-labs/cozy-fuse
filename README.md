@@ -14,7 +14,7 @@ Usage
 -----
 
     $ mkdir mnt
-    $ couchmount http://localhost:5984/jasondavies/_design%2Flinks mnt/
+    $ python couchmount.py http://localhost:5984/database_name mnt/
     $ ls mnt/
     $ touch mnt/foo
     $ ls mnt/
