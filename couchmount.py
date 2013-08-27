@@ -214,13 +214,13 @@ class CouchFSDocument(fuse.Fuse):
         for res in self.db.view("file/all"):
             if res.value["slug"] == path:
                 self.db.delete(self.db[res.id])
-                if filename != COUCHFS_DIRECTORY_PLACEHOLDER and len(self.get_dirs().get(dirname, [])) == 0:
-                    print "putting to:", u'%s/%s' % (dirname, COUCHFS_DIRECTORY_PLACEHOLDER)
-                    self.db.put_attachment(self.db[res.id], u'', filename=u'%s/%s' % (dirname, COUCHFS_DIRECTORY_PLACEHOLDER))
+                #if filename != COUCHFS_DIRECTORY_PLACEHOLDER and len(self.get_dirs().get(dirname, [])) == 0:
+                #    print "putting to:", u'%s/%s' % (dirname, COUCHFS_DIRECTORY_PLACEHOLDER)
+                #    self.db.put_attachment(self.db[res.id], u'', filename=u'%s/%s' % (dirname, COUCHFS_DIRECTORY_PLACEHOLDER))
 
     def truncate(self, path, size):
         """
-        Chnage size of a file
+        Change size of a file
             path {string}: file path
             size {integer}: new file size
         """
