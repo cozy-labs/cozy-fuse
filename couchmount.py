@@ -327,6 +327,8 @@ def main():
         print " any CouchDB document on your own filesystem!"
         print
         print "Usage: python couchmount.py [-d] <http://hostname:port/db> <mount-point>"
+        print
+        print "Unmount with : fusermount -u <mount-point>"
         sys.exit(-1)
 
     if len(args) == 2:
