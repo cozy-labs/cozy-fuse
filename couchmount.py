@@ -197,7 +197,7 @@ class CouchFSDocument(fuse.Fuse):
                  and minor numbers of the newly created device special file
         """
         path = _normalize_path(path)
-        id_doc = self.db.create({"name": path, "slug":path})
+        id_doc = self.db.create({"name": path, "slug":path, "docType": "File"})
         self.db.put_attachment(self.db[id_doc], '', filename=path)
 
     def unlink(self, path):
@@ -249,7 +249,7 @@ class CouchFSDocument(fuse.Fuse):
         """
         path = _normalize_path(path)
         name = '%s/%s' % (path, COUCHFS_DIRECTORY_PLACEHOLDER)
-        id_doc = self.db.create({"name": name, "slug":name})
+        id_doc = self.db.create({"name": name, "slug":name, "docType": "File"})
         self.db.put_attachment(self.db[id_doc], '', filename=u'%s/%s' % (path, COUCHFS_DIRECTORY_PLACEHOLDER))
         return 0
 
@@ -276,7 +276,7 @@ class CouchFSDocument(fuse.Fuse):
             if res.value["slug"] == pathfrom:
                 data = self.db.get_attachment(res.id, pathfrom)
                 self.db.delete(self.db[res.id])
-                id_doc = self.db.create({"name": pathto, "slug":pathto})
+                id_doc = self.db.create({"name": pathto, "slug":pathto, "docType": "File"})
                 self.db.put_attachment(self.db[id_doc], data, filename=pathto)
                 return 0
 
