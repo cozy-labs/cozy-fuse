@@ -184,6 +184,7 @@ class CouchFSDocument(fuse.Fuse):
         for res in self.db.view("file/all"):
             if res.value["slug"] == path:   
                 self.db.put_attachment(self.db[res.id], self.currentFile, filename=path)
+        self.currentFile = ""
     #    self.db.put_attachment(self.db[res.id], self.currentFile, filename=path)
 
 
