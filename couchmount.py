@@ -171,23 +171,27 @@ class CouchFSDocument(fuse.Fuse):
             for res in self.db.view("file/all"):
                 if res.value["slug"] == path:   
                     self.currentFile = self.currentFile + buf
-                    #self.db.put_attachment(self.db[res.id], contain, filename=path)
                     return len(buf)
         except (KeyError, ResourceNotFound):
             pass
         return -errno.ENOENT
-
     
     def  release(self, path, fuse_file_info):
+        """
+        Release an open file
+            path {string}: file path
+            fuse_file_info {struct}: information about open file
+            
+            Release is called when there are no more references 
+            to an open file: all file descriptors are closed and 
+            all memory mappings are unmapped.
+        """
         print fuse_file_info
         path = _normalize_path(path)      
         for res in self.db.view("file/all"):
             if res.value["slug"] == path:   
                 self.db.put_attachment(self.db[res.id], self.currentFile, filename=path)
         self.currentFile = ""
-    #    self.db.put_attachment(self.db[res.id], self.currentFile, filename=path)
-
-
 
     def mknod(self, path, mode, dev):
         """
