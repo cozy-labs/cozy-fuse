@@ -47,7 +47,10 @@ class CouchFSDocument(fuse.Fuse):
         fuse.Fuse.__init__(self, *args, **kwargs)
         db_uri = uri
         self.db = Database(db_uri)
-        #self.db["_design/file"] = {"views": {"all": {"map": "function (doc) {\n    emit(doc.id, doc) \n}"}}}
+        self.currentFile = ""
+
+        #self.db["_design/file"] = {"views": {"all": {"map": "function (doc) {\n    if (doc.docType === \"File\") {\n        emit(doc.id, doc) \n    }\n}"}}}
+
 
     def get_dirs(self):
         """
@@ -166,18 +169,24 @@ class CouchFSDocument(fuse.Fuse):
         path = _normalize_path(path)
         try:
             for res in self.db.view("file/all"):
-                if res.value["slug"] == path:
-                    data = self.db.get_attachment(self.db[res.id], path)
-                    if data == None:
-                        self.db.put_attachment(self.db[res.id], buf, filename=path)
-                    else:
-                        contain = data.read()
-                        contain = contain[0:offset] + buf + contain[offset+len(buf):]
-                        self.db.put_attachment(self.db[res.id], contain, filename=path)
+                if res.value["slug"] == path:   
+                    self.currentFile = self.currentFile + buf
+                    #self.db.put_attachment(self.db[res.id], contain, filename=path)
                     return len(buf)
         except (KeyError, ResourceNotFound):
             pass
         return -errno.ENOENT
+
+    
+    def  release(self, path, fuse_file_info):
+        print fuse_file_info
+        path = _normalize_path(path)      
+        for res in self.db.view("file/all"):
+            if res.value["slug"] == path:   
+                self.db.put_attachment(self.db[res.id], self.currentFile, filename=path)
+    #    self.db.put_attachment(self.db[res.id], self.currentFile, filename=path)
+
+
 
     def mknod(self, path, mode, dev):
         """
