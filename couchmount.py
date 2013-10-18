@@ -24,7 +24,6 @@ from urllib import quote, unquote
 
 fuse.fuse_python_api = (0, 2)
 
-COUCHFS_DIRECTORY_PLACEHOLDER = u'.couchfs-directory-placeholder'
 
 class CouchStat(fuse.Stat):
     def __init__(self):
@@ -50,6 +49,7 @@ class CouchFSDocument(fuse.Fuse):
         self.currentFile = ""
 
         #self.db["_design/file"] = {"views": {"all": {"map": "function (doc) {\n    if (doc.docType === \"File\") {\n        emit(doc.id, doc) \n    }\n}"}}}
+        #self.db["_design/folder"] = {"views": {"all": {"map": "function (doc) {\n    if (doc.docType === \"Folder\") {\n        emit(doc.id, doc) \n    }\n}"}}}
 
 
     def get_dirs(self):
@@ -57,12 +57,22 @@ class CouchFSDocument(fuse.Fuse):
         Get directories
         """
         dirs = {}
+        for res in self.db.view("folder/all"):
+            att = res.value["slug"]
+            path = att[1:]
+            parents = [u'']
+            for name in att.split('/'):
+                if name != '':
+                    filenames = dirs.setdefault(u'/'.join(parents[1:]), set())
+                    filenames.add(name)
+                    parents.append(name)
+                    dirs.setdefault(u''+path, set())
         for res in self.db.view("file/all"):
             att = res.value["slug"]
             parents = [u'']
             for name in att.split('/'):
-                filenames = dirs.setdefault(u'/'.join(parents[1:]), set())
-                if name != COUCHFS_DIRECTORY_PLACEHOLDER:
+                if name != '':
+                    filenames = dirs.setdefault(u'/'.join(parents[1:]), set())
                     filenames.add(name)
                     parents.append(name)
         return dirs
@@ -87,16 +97,16 @@ class CouchFSDocument(fuse.Fuse):
         path = _normalize_path(path)
         try:
             st = CouchStat()
-            if path == '' or path in self.get_dirs().keys():
+            if path == '' or path in self.get_dirs().keys() :
                 st.st_mode = stat.S_IFDIR | 0775
                 st.st_nlink = 2
             else:
                 exist = "false"
                 for res in self.db.view("file/all"):
-                    if res.value["slug"] == path:
+                    if res.value["slug"] == '/' + path:
                         exist = "true"
                         att = self.db[res.id].get('_attachments', {})
-                        data = att[path]
+                        data = att["thumb"]
                         st.st_mode = stat.S_IFREG | 0664
                         st.st_nlink = 1
                         st.st_size = data['length']
@@ -114,9 +124,6 @@ class CouchFSDocument(fuse.Fuse):
         """
         path = _normalize_path(path)
         try:
-            #data = self.db.get_attachment(self.db[path], path.split('/')[-1])
-            #att = self.db[path].get('_attachments', {})
-            #data = att[path.split('/')[-1]]
             parts = path.rsplit(u'/', 1)
             if len(parts) == 1:
                 dirname, filename = u'', parts[0]
@@ -127,9 +134,6 @@ class CouchFSDocument(fuse.Fuse):
             return -errno.ENOENT
         except (KeyError, ResourceNotFound):
             return -errno.ENOENT
-        #accmode = os.O_RDONLY | os.O_WRONLY | os.O_RDWR
-        #if (flags & accmode) != os.O_RDONLY:
-        #    return -errno.EACCES
 
     def read(self, path, size, offset):
         """
@@ -141,8 +145,8 @@ class CouchFSDocument(fuse.Fuse):
         path = _normalize_path(path)
         try:
             for res in self.db.view("file/all"):
-                if res.value["slug"] == path:
-                    data = self.db.get_attachment(res.id, path)
+                if res.value["slug"] == '/' + path:
+                    data = self.db.get_attachment(res.id, "thumb")
                     if data == None:
                         return ''
                     else:
@@ -169,14 +173,14 @@ class CouchFSDocument(fuse.Fuse):
         path = _normalize_path(path)
         try:
             for res in self.db.view("file/all"):
-                if res.value["slug"] == path:   
+                if res.value["slug"] == '/' + path:   
                     self.currentFile = self.currentFile + buf
                     return len(buf)
         except (KeyError, ResourceNotFound):
             pass
         return -errno.ENOENT
     
-    def  release(self, path, fuse_file_info):
+    def release(self, path, fuse_file_info):
         """
         Release an open file
             path {string}: file path
@@ -187,11 +191,11 @@ class CouchFSDocument(fuse.Fuse):
             all memory mappings are unmapped.
         """
         print fuse_file_info
-        path = _normalize_path(path)      
-        for res in self.db.view("file/all"):
-            if res.value["slug"] == path:   
-                self.db.put_attachment(self.db[res.id], self.currentFile, filename=path)
-        self.currentFile = ""
+        if self.currentFile != "": 
+            for res in self.db.view("file/all"):
+                if res.value["slug"] == path:   
+                    self.db.put_attachment(self.db[res.id], self.currentFile, filename="thumb")
+            self.currentFile = ""
 
     def mknod(self, path, mode, dev):
         """
@@ -201,9 +205,13 @@ class CouchFSDocument(fuse.Fuse):
             dev: if the file type is S_IFCHR or S_IFBLK, dev specifies the major
                  and minor numbers of the newly created device special file
         """
-        path = _normalize_path(path)
-        id_doc = self.db.create({"name": path, "slug":path, "docType": "File"})
-        self.db.put_attachment(self.db[id_doc], '', filename=path)
+        #path = _normalize_path(path)
+        partialPaths = path.split('/')
+        name = partialPaths[len(partialPaths) -1]
+        filePath = path.replace('/' + name, '')
+        newFile = {"name": name, "path": filePath, "slug":path, "docType": "File"}
+        id_doc = self.db.create(newFile)
+        self.db.put_attachment(self.db[id_doc], '', filename="thumb")
 
     def unlink(self, path):
         """
@@ -217,11 +225,8 @@ class CouchFSDocument(fuse.Fuse):
         else:
             dirname, filename = parts
         for res in self.db.view("file/all"):
-            if res.value["slug"] == path:
+            if res.value["slug"] == '/' + path:
                 self.db.delete(self.db[res.id])
-                #if filename != COUCHFS_DIRECTORY_PLACEHOLDER and len(self.get_dirs().get(dirname, [])) == 0:
-                #    print "putting to:", u'%s/%s' % (dirname, COUCHFS_DIRECTORY_PLACEHOLDER)
-                #    self.db.put_attachment(self.db[res.id], u'', filename=u'%s/%s' % (dirname, COUCHFS_DIRECTORY_PLACEHOLDER))
 
     def truncate(self, path, size):
         """
@@ -233,7 +238,7 @@ class CouchFSDocument(fuse.Fuse):
             if res.value["slug"] == path:
                 f = open(path)
                 path = _normalize_path(path)
-                self.db.put_attachment(self.db[res.id], f, filename=path)
+                self.db.put_attachment(self.db[res.id], f, filename="thumb")
                 f.close()
         return 0
 
@@ -252,10 +257,11 @@ class CouchFSDocument(fuse.Fuse):
             path {string}: diretory path
             mode {string}: directory permissions
         """
-        path = _normalize_path(path)
-        name = '%s/%s' % (path, COUCHFS_DIRECTORY_PLACEHOLDER)
-        id_doc = self.db.create({"name": name, "slug":name, "docType": "File"})
-        self.db.put_attachment(self.db[id_doc], '', filename=u'%s/%s' % (path, COUCHFS_DIRECTORY_PLACEHOLDER))
+        #path = _normalize_path(path)
+        partialPaths = path.split('/')
+        name = partialPaths[len(partialPaths) -1]
+        folderPath = path.replace('/' + name, '')
+        id_doc = self.db.create({"name": name, "path": folderPath, "slug": path, "docType": "Folder"})
         return 0
 
     def rmdir(self, path):
@@ -263,10 +269,8 @@ class CouchFSDocument(fuse.Fuse):
         Remove directory
             path {string}: diretory path
         """
-        path = _normalize_path(path)
-        name = '%s/%s' % (path, COUCHFS_DIRECTORY_PLACEHOLDER)
-        for res in self.db.view("file/all"):
-            if res.value["slug"] == name:
+        for res in self.db.view("folder/all"):
+            if res.value["slug"] == path:
                 self.db.delete(self.db[res.id])
                 return 0
 
@@ -276,13 +280,22 @@ class CouchFSDocument(fuse.Fuse):
             pathfrom {string}: old path
             pathto {string}: new path
         """
-        pathfrom, pathto = _normalize_path(pathfrom), _normalize_path(pathto)
         for res in self.db.view("file/all"):
             if res.value["slug"] == pathfrom:
-                data = self.db.get_attachment(res.id, pathfrom)
-                self.db.delete(self.db[res.id])
-                id_doc = self.db.create({"name": pathto, "slug":pathto, "docType": "File"})
-                self.db.put_attachment(self.db[id_doc], data, filename=pathto)
+                doc = res.value
+                partialPaths = pathto.split('/')
+                name = partialPaths[len(partialPaths) -1]
+                filePath = pathto.replace('/' + name, '')
+                doc.update({"slug": pathto, "name": name, "path": filePath})
+                self.db.save(doc)        
+        for res in self.db.view("folder/all"):
+            if res.value["slug"] == pathfrom:
+                doc = res.value
+                partialPaths = pathto.split('/')
+                name = partialPaths[len(partialPaths) -1]
+                filePath = pathto.replace('/' + name, '')
+                doc.update({"slug": pathto, "name": name, "path": filePath})
+                self.db.save(doc)
                 return 0
 
     def fsync(self, path, isfsyncfile):
