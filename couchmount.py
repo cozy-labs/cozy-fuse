@@ -15,12 +15,12 @@ import fuse
 import os
 import stat
 import sys
-from time import time
+import time
 try:
     import simplejson as json
 except ImportError:
     import json # Python 2.6
-from urllib import quote, unquote
+from urllib import quote, unquote    
 
 fuse.fuse_python_api = (0, 2)
 
@@ -41,17 +41,31 @@ class CouchStat(fuse.Stat):
 def _normalize_path(path):
     return u'/'.join([part for part in path.split(u'/') if part != u''])
 
+def _recover_path(db): 
+    res = db.view("remote/all")
+    if not res:
+        time.sleep(1)
+        return _recover_path(db)
+    else:
+        for res in db.view("remote/all"):
+            if not res.value["folder"]:
+                time.sleep(1)
+                return _recover_path(db)
+            else:
+                return res.value['folder']
+
+
+
+
 class CouchFSDocument(fuse.Fuse):
     def __init__(self, mountpoint, uri=None, *args, **kwargs):
-        fuse.Fuse.__init__(self, *args, **kwargs)
+        fuse.Fuse.__init__(self, *args, **kwargs)        
+        self.fuse_args.mountpoint = mountpoint
         db_uri = uri
         self.db = Database(db_uri)
         self.currentFile = ""
 
-        #self.db["_design/file"] = {"views": {"all": {"map": "function (doc) {\n    if (doc.docType === \"File\") {\n        emit(doc.id, doc) \n    }\n}"}}}
-        #self.db["_design/folder"] = {"views": {"all": {"map": "function (doc) {\n    if (doc.docType === \"Folder\") {\n        emit(doc.id, doc) \n    }\n}"}}}
-
-
+       
     def get_dirs(self):
         """
         Get directories
@@ -339,20 +353,27 @@ class CouchFSDocument(fuse.Fuse):
 
 def main():
     args = sys.argv[1:]
-    if len(args) not in (2, 3):
+    if len(args) not in (0,1):
         print "CouchDB FUSE Connector: Allows you to browse the _attachments of"
         print " any CouchDB document on your own filesystem!"
         print
-        print "Usage: python couchmount.py [-d] <http://hostname:port/db> <mount-point>"
+        print "Usage: python couchmount.py [-d]"
         print
         print "Unmount with : fusermount -u <mount-point>"
         sys.exit(-1)
-
-    if len(args) == 2:
-        fs = CouchFSDocument(args[1], args[0])
-    elif len(args) == 3:
-        fs = CouchFSDocument(args[2], args[1])
-
+    server = Server('http://localhost:5984/')
+    try:
+        db = server['cozy']
+    except Exception, e:
+        db = server.create('cozy')
+    if '_design/remote' not in db:
+       db["_design/remote"] = {"views": {"all": {"map": "function (doc) {\n    if (doc.docType === \"Remote\") {\n        emit(doc.id, doc) \n    }\n}"}}} 
+    if '_design/file' not in db:
+        db["_design/file"] = {"views": {"all": {"map": "function (doc) {\n    if (doc.docType === \"File\") {\n        emit(doc.id, doc) \n    }\n}"}}}
+    if '_design/folder' not in db:
+        db["_design/folder"] = {"views": {"all": {"map": "function (doc) {\n    if (doc.docType === \"Folder\") {\n        emit(doc.id, doc) \n    }\n}"}}}
+    folder = _recover_path(db)
+    fs = CouchFSDocument(folder, 'http://localhost:5984/cozy')
     fs.parse(errex=1)
     fs.main()
 
