@@ -17,16 +17,15 @@ import stat
 import sys
 import time
 import base64
-import thread
 try:
     import simplejson as json
 except ImportError:
     import json # Python 2.6
-try:
-    import _thread # Python 3
-except ImportError:
-    import thread
-from threading import Thread
+#try:
+#    import _thread # Python 3
+#except ImportError:
+#    import thread
+#from threading import Thread
 from urllib import quote, unquote    
 
 fuse.fuse_python_api = (0, 2)
@@ -61,88 +60,11 @@ def _recover_path(db):
             else:
                 return device.value['folder']
 
-def _replicate_to_local(self, ids):
-    target = 'http://%s:%s@localhost:5984/cozy' % (self.username, self.password)
-    url = self.urlCozy.split('/')
-    source = "https://%s:%s@%s/cozy" % (self.loginCozy, self.passwordCozy, url[2])
-    self.rep = self.server.replicate(source, target, doc_ids=ids)
-
 def _replicate_from_local(self, ids):
     source = 'http://%s:%s@localhost:5984/cozy' % (self.username, self.password)
     url = self.urlCozy.split('/')
     target = "https://%s:%s@%s/cozy" % (self.loginCozy, self.passwordCozy, url[2])
-    self.rep = self.server.replicate(source, target, doc_ids=ids)
-
-def _deleteFile(line, self):
-    try:
-        # Remove binary if a file has been deleted
-        if line['deleted'] and line['deleted'] is True:
-            try:
-                binary = self.ids[line['doc']['_id']][0]
-                if self.db[binary]:
-                    self.db.delete(self.db[binary])
-                    _replicate_to_local(self, [binary])
-                return True
-            except (Exception):
-                return True
-    except (KeyError):
-        return False
-
-def _addFile(line, self):  
-    try:
-        # Add binary if File has been added
-        if line['doc']['_rev'][0] is "1" and line['doc']['_rev'][1] is '-':
-            id_doc = line['doc']['_id']
-            doc = self.db[id_doc]
-            if doc['docType'] == 'File':
-                try:
-                    if self.ids[id_doc]:
-                        return True
-                except (KeyError):
-                    self.ids[id_doc] = ["", ""]
-                    return True
-        else:
-            return False
-    except (Exception):
-        return True
-
-def _updateFile(line, self): 
-    try: 
-        id_doc = line['doc']['_id']
-        doc = self.db[id_doc]
-        if doc['docType'] == 'File':
-            binary = doc['binary']['file']
-            if binary['rev'] != self.ids[id_doc][1]:
-                self.ids[id_doc] = [binary['id'], binary['rev']]
-                _replicate_to_local(self, [binary['id']])
-                return True
-    except (Exception):
-        return False   
-
-def _isDevice(line):
-    try:
-        if line['doc']['docType'] != "Device":                    
-            return False
-        else:
-            return True
-    except (Exception):
-        return False
-
-def _changeFile(self): 
-    files = self.db.view("file/all")
-    self.ids = {}
-    for res in files:
-        binary = res.value["binary"]["file"]
-        self.ids[res.id] = [binary["id"], binary["rev"]]
-    changes = self.db.changes(feed='continuous', heartbeat='1000', since=self.device['change'], include_docs=True)
-    for line in changes:
-        if not _isDevice(line):
-            self.device['change'] = line['seq'] + 1
-            self.db.save(self.device)
-            id_doc = line['doc']
-            if not _deleteFile(line, self):
-                if not _addFile(line, self):  
-                    _updateFile(line, self)     
+    self.rep = self.server.replicate(source, target, doc_ids=ids)  
 
 
 class CouchFSDocument(fuse.Fuse):
@@ -151,25 +73,21 @@ class CouchFSDocument(fuse.Fuse):
         self.fuse_args.mountpoint = mountpoint
         db_uri = uri
         self.server = Server('http://localhost:5984/')
+        # Add local credentials
         f = open('/etc/cozy/couchdb.login')
         lines = f.readlines()
         f.close()
         self.username = lines[0].strip()
         self.password = lines[1].strip()
-        # Add credentials
         self.server.resource.credentials = (self.username, self.password)
         self.db = self.server['cozy']
         self.currentFile = ""
         res = self.db.view("device/all")
         for device in res:
+            # Add cozy credentials
             self.urlCozy = device.value['url']
             self.passwordCozy = device.value['password']
             self.loginCozy = device.value['login']
-            self.device = device.value
-        try:
-            Thread(target=_changeFile, args=[self]).start()
-        except Exception, errtxt:
-            print errtxt
        
     def get_dirs(self):
         """
@@ -321,6 +239,7 @@ class CouchFSDocument(fuse.Fuse):
                 if res["path"] + "/" + res["name"] == path:   
                     bin = res["binary"]["file"]["id"]
                     self.db.put_attachment(self.db[bin], self.currentFile, filename="file")
+                    _replicate_from_local(self, [bin])
             self.currentFile = ""
 
     def mknod(self, path, mode, dev):
@@ -360,6 +279,7 @@ class CouchFSDocument(fuse.Fuse):
                 bin = res["binary"]["file"]["id"]
                 self.db.delete(self.db[bin])
                 self.db.delete(self.db[res["_id"]])
+                _replicate_from_local(self, [bin])
 
     def truncate(self, path, size):
         """
@@ -384,7 +304,6 @@ class CouchFSDocument(fuse.Fuse):
             path {string}: diretory path
             mode {string}: directory permissions
         """
-        #path = _normalize_path(path)
         partialPaths = path.split('/')
         name = partialPaths[len(partialPaths) -1]
         folderPath = path[:-(len(name)+1)]
