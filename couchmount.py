@@ -30,6 +30,7 @@ except ImportError:
 from urllib import quote, unquote    
 
 fuse.fuse_python_api = (0, 2)
+database = "cozy"
 
 
 class CouchStat(fuse.Stat):
@@ -62,7 +63,7 @@ def _recover_path(db):
                 return device.value['folder']
 
 def _replicate_from_local(self, ids):
-    source = 'http://%s:%s@localhost:5984/cozy' % (self.username, self.password)
+    source = 'http://%s:%s@localhost:5984/%s' % (self.username, self.password, database)
     url = self.urlCozy.split('/')
     target = "https://%s:%s@%s/cozy" % (self.loginCozy, self.passwordCozy, url[2])
     self.rep = self.server.replicate(source, target, doc_ids=ids)  
@@ -81,7 +82,7 @@ class CouchFSDocument(fuse.Fuse):
         self.username = lines[0].strip()
         self.password = lines[1].strip()
         self.server.resource.credentials = (self.username, self.password)
-        self.db = self.server['cozy']
+        self.db = self.server[database]
         self.currentFile = ""
         res = self.db.view("device/all")
         for device in res:
@@ -418,15 +419,16 @@ def _init():
         # Add credentials
         server.resource.credentials = (username, password)
         try:
-            db = server['cozy']
+            db = server[database]
         except Exception, e:
-            db = server.create('cozy')
+            db = server.create(database)
             # add user
         if '_design/device' not in db:
            db["_design/device"] = {"views": {"all": {"map": "function (doc) {\n" + 
                 "    if (doc.docType === \"Device\") {\n        emit(doc.id, doc) \n    }\n}"}}} 
         folder = _recover_path(db)
-        fs = CouchFSDocument(folder, 'http://localhost:5984/cozy')
+        db = 'http://localhost:5984/%s' % database
+        fs = CouchFSDocument(folder, db)
         #replication.Replication()
         fs.parse(errex=1)
         fs.main()

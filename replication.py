@@ -2,10 +2,11 @@ import sys
 from couchdb import Database, Document, ResourceNotFound, Server
 from couchdb.client import Row, ViewResults
 import time
+database = "cozy"
 
 
 def _replicate_to_local(self, ids):
-    target = 'http://%s:%s@localhost:5984/cozy' % (self.username, self.password)
+    target = 'http://%s:%s@localhost:5984/%s' % (self.username, self.password, database)
     url = self.urlCozy.split('/')
     source = "https://%s:%s@%s/cozy" % (self.loginCozy, self.passwordCozy, url[2])
     self.rep = self.server.replicate(source, target, doc_ids=ids)
@@ -76,7 +77,7 @@ class Replication():
         self.password = lines[1].strip()
         # Add credentials
         self.server.resource.credentials = (self.username, self.password)
-        self.db = self.server['cozy']
+        self.db = self.server[database]
     	self.changeFile()
 
     def changeFile(self):
