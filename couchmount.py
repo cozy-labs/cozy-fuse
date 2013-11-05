@@ -17,6 +17,7 @@ import stat
 import sys
 import time
 import base64
+import replication
 try:
     import simplejson as json
 except ImportError:
@@ -426,6 +427,7 @@ def _init():
                 "    if (doc.docType === \"Device\") {\n        emit(doc.id, doc) \n    }\n}"}}} 
         folder = _recover_path(db)
         fs = CouchFSDocument(folder, 'http://localhost:5984/cozy')
+        #replication.Replication()
         fs.parse(errex=1)
         fs.main()
     except Exception, e:
