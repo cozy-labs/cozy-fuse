@@ -69,7 +69,7 @@ class Replication():
     def __init__(self, *args, **kwargs): 
     	self.server = Server('http://localhost:5984/')
         # Read file
-        f = open('/etc/cozy/couchdb.login')
+        f = open('/etc/cozy-files/couchdb.login')
         lines = f.readlines()
         f.close()
         self.username = lines[0].strip()

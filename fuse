@@ -2,7 +2,7 @@
 
 DAEMON="/etc/cozy-files/couchdb-fuse/couchmount.pyc" #ligne de commande du programme
 DEAMON_OPT=""  #argument à utiliser par le programme
-DAEMONUSER="root" #utilisateur du programme
+DAEMONUSER="zoe" #utilisateur du programme
 DEAMON_NAME="couchmount.pyc" #Nom du programme (doit être identique à l'exécutable)
 
 PATH="/sbin:/bin:/usr/sbin:/usr/bin" #Ne pas toucher

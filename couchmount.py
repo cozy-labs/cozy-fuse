@@ -75,7 +75,7 @@ class CouchFSDocument(fuse.Fuse):
         db_uri = uri
         self.server = Server('http://localhost:5984/')
         # Add local credentials
-        f = open('/etc/cozy/couchdb.login')
+        f = open('/etc/cozy-files/couchdb.login')
         lines = f.readlines()
         f.close()
         self.username = lines[0].strip()
@@ -410,7 +410,7 @@ def _init():
     try:
         server = Server('http://localhost:5984/')
         # Read file
-        f = open('/etc/cozy/couchdb.login')
+        f = open('/etc/cozy-files/couchdb.login')
         lines = f.readlines()
         f.close()
         username = lines[0].strip()
