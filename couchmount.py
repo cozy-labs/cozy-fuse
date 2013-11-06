@@ -30,7 +30,7 @@ except ImportError:
 from urllib import quote, unquote    
 
 fuse.fuse_python_api = (0, 2)
-database = "cozy"
+database = "cozy-files"
 
 
 class CouchStat(fuse.Stat):
@@ -73,6 +73,7 @@ class CouchFSDocument(fuse.Fuse):
     def __init__(self, mountpoint, uri=None, *args, **kwargs):
         fuse.Fuse.__init__(self, *args, **kwargs)        
         self.fuse_args.mountpoint = mountpoint
+        self.fuse_args.add('allow_other')
         db_uri = uri
         self.server = Server('http://localhost:5984/')
         # Add local credentials
@@ -416,6 +417,7 @@ def _init():
         f.close()
         username = lines[0].strip()
         password = lines[1].strip()
+        
         # Add credentials
         server.resource.credentials = (username, password)
         try:

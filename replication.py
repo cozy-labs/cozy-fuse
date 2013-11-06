@@ -2,7 +2,7 @@ import sys
 from couchdb import Database, Document, ResourceNotFound, Server
 from couchdb.client import Row, ViewResults
 import time
-database = "cozy"
+database = "cozy-files"
 
 
 def _replicate_to_local(self, ids):
