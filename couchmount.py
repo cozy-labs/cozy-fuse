@@ -262,7 +262,6 @@ class CouchFSDocument(fuse.Fuse):
         rev = self.db[id_bin]["_rev"]
         newFile = {"name": name, "path": filePath, "binary":{"file": {"id": id_bin, "rev": rev}}, "docType": "File"}
         id_doc = self.db.create(newFile)
-        self.ids[id_doc]= [id_bin, rev]
         _replicate_from_local(self, [id_bin])
 
     def unlink(self, path):
@@ -298,7 +297,13 @@ class CouchFSDocument(fuse.Fuse):
             path {string}: file path
             times: times of file
         """
+        return 0
 
+
+    def chmod ( self, path, mode ):
+        return 0
+
+    def chown ( self, path, uid, gid ):
         return 0
 
     def mkdir(self, path, mode):
