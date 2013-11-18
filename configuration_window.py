@@ -2,6 +2,7 @@
 from gi.repository import Gtk
 from requests import post
 import requests
+import gobject
 from couchdb import Database, Document, ResourceNotFound, Server
 from couchdb.client import Row, ViewResults
 import threading
@@ -25,6 +26,17 @@ def _replicate_from_local(self):
     url = self.url.split('/')
     target = "https://%s:%s@%s/cozy" % (self.device, self.pwdDevice, url[2])
     self.rep = self.server.replicate(source, target, continuous=True, filter="%s/filter" %self.idDevice)
+
+def _recover_progression(self):
+    url = 'http://localhost:5984/_active_tasks'
+    r = requests.get(url)
+    replications = json.loads(r.content)
+    progress = 0
+    for rep in replications:
+        progress = progress + rep["progress"]
+    print progress
+    print progress/200.
+    return progress/200.
 
 def _create_filter(self):
     res = self.db.view("device/all")
@@ -137,60 +149,87 @@ class Configuration:
                     }
                 }
 
+        self.db["_design/binary"] = {
+            "views": {
+                "all": {
+                    "map": """function (doc) {
+                                  if (doc.docType === \"Binary\") {
+                                      emit(doc.id, doc) 
+                                  }
+                               }"""
+                        }
+                    }
+                }
+
+
         Gtk.main()
 
     def on_button_clicked(self, widget):
-        #self.builder.get_object("alert").hide()
-        self.spinner = self.builder.get_object("spinner")
-        self.spinner.start()
-        self.spinner.show()
-	
+
         def start_replication(self):
             # Check data
             self.pwdCozy = self.builder.get_object("password").get_text()
             self.url = self.builder.get_object("cozyUrl").get_text()
             self.device = self.builder.get_object("device").get_text()
             self.folder = self.builder.get_object("folder").get_current_folder()
+            progressbar = self.builder.get_object("progressbar")
             if self.pwdCozy is "" or self.url is "" or self.device is "" or self.folder is "":
                 self.builder.get_object("alert").set_text('Tous les champs doivent etre rempli')
-                sys.exit(1)
+                progressbar.set_fraction(0) 
+                yield False
             else:
                 # Add device in cozy
+                progressbar.set_fraction(0.10)
+                yield True
                 data = {'login': self.device}
                 try:
-                	r = post(self.url + '/device', data=data, auth=('owner', self.pwdCozy))                	
-	                if r.status_code == 401:
-	                    self.spinner.hide()
-	                    self.builder.get_object("alert").set_text('Votre mot de passe est incorrect') 
-                	    sys.exit(1)                 
-	                elif r.status_code == 400:
-	                    self.spinner.hide()
-	                    self.builder.get_object("alert").set_text('Ce nom est deja utilise par un autre device')
-                	    sys.exit(1)    
-	                else:
-	                    self.builder.get_object("alert").hide() 			
-	                    # Call replication in one direction
-	                    data =  json.loads(r.content)
-	                    self.idDevice = data['id']
-	                    self.pwdDevice = data['password']
-	                    _replicate_to_local(self)
-	                    # Update device in local database and create filter
-	                    _create_filter(self)
-	                    #Call replication in other direction
-	                    _replicate_from_local(self)
-	                    # Quit  
-	                    Gtk.main_quit()
-                	    sys.exit(0)
-                except Exception, e:
-                    self.spinner.hide()
-                    self.builder.get_object("alert").set_text("Verifiez l'url de votre cozy")
-                    sys.exit(1)
+                    r = post(self.url + '/device', data=data, auth=('owner', self.pwdCozy))                 
+                    if r.status_code == 401:
+                        self.builder.get_object("alert").set_text('Votre mot de passe est incorrect') 
+                        progressbar.set_fraction(0) 
+                        yield False                 
+                    elif r.status_code == 400:
+                        self.builder.get_object("alert").set_text('Ce nom est deja utilise par un autre device')
+                        progressbar.set_fraction(0) 
+                        yield False 
 
-        t = threading.Thread(target = start_replication, args=(self,))
-        t.start()
-        t.join()
-        self.spinner.hide()
-        print t
+                    else: 
+                        progressbar.set_fraction(0.20)
+                        yield True
+                        self.builder.get_object("alert").hide()             
+                        # Call replication in one direction
+                        data =  json.loads(r.content)
+                        self.idDevice = data['id']
+                        self.pwdDevice = data['password']
+                        _replicate_to_local(self)
+                        progressbar.set_fraction(0.25)
+                        yield True
+                        # Update device in local database and create filter
+                        _create_filter(self)
+                        #Call replication in other direction
+                        _replicate_from_local(self)      
+                        yield True
+                        # Quit 
+                        print "quit"
+                        progress = _recover_progression(self)
+                        print progress
+                        progress = progress*0.75 + 0.25
+                        while progress < 0.99:
+                            print progress
+                            progressbar.set_fraction(progress)               
+                            yield True
+                            progress = _recover_progression(self)
+                            progress = progress*0.75 + 0.25
+                        Gtk.main_quit()
+                        sys.exit(0)  
+                        yield False
+
+                except Exception, e:
+                    self.builder.get_object("alert").set_text("Verifiez l'url de votre cozy")
+                    yield False
+
+        task = start_replication(self)
+        gobject.idle_add(task.next)
 
 if __name__ == "__main__":
     Configuration()	

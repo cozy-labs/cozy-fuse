@@ -13,18 +13,6 @@
         <property name="can_focus">False</property>
         <property name="margin_bottom">2</property>
         <child>
-          <object class="GtkSpinner" id="spinner">
-            <property name="can_focus">False</property>
-            <property name="no_show_all">True</property>
-          </object>
-          <packing>
-            <property name="left_attach">0</property>
-            <property name="top_attach">6</property>
-            <property name="width">1</property>
-            <property name="height">1</property>
-          </packing>
-        </child>
-        <child>
           <object class="GtkButton" id="config">
             <property name="label" translatable="yes">Configurer</property>
             <property name="use_action_appearance">False</property>
@@ -236,6 +224,9 @@
             <property name="width">2</property>
             <property name="height">1</property>
           </packing>
+        </child>
+        <child>
+          <placeholder/>
         </child>
         <child>
           <placeholder/>
