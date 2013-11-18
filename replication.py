@@ -101,7 +101,6 @@ class Replication():
                             _updateFile(line, self)     
 
 def _init():
-    print 'init'
     try:
         Replication()
     except Exception, e: 

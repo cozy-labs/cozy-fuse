@@ -18,10 +18,6 @@ import sys
 import time
 import base64
 import replication
-try:
-    import simplejson as json
-except ImportError:
-    import json # Python 2.6
 #try:
 #    import _thread # Python 3
 #except ImportError:
