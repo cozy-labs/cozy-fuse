@@ -84,13 +84,8 @@ class Configuration:
         f.close()
         self.username = lines[0].strip()
         self.password = lines[1].strip()
-        # Add credentials
-        #self.server.resource.credentials = (self.username, self.password)
+        # Create database
         self.db = self.server.create(database)
-
-        #subprocess.call(["curl -vX PUT $COUCH/$database/_security",
-   		#	"-Hcontent-type:application/json",
-   	    #	"--data-binary '{\"admins\":{\"names\":[\"%self\"],\"roles\":[]},\"members\":{\"names\":[\"%s\"],\"roles\":[]}}'" % (self.username, self.username) ])
 
         self.db["_design/device"] = {
             "views": {

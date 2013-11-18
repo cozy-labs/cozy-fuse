@@ -194,6 +194,21 @@ def start_prog():
 
 try:
     db = server[database]
+    r = requests.get('http://localhost:5984/_active_tasks')
+    replications = json.loads(r.content)
+    if len(replications) is 0:
+        res = db.view("device/all")
+        for device in res:
+            device = device.value
+            url = device['url']
+            pwd = device['password']
+            name = device['login']
+            idDevice = device['_id']
+            _replicate_to_local(url, pwd, name, idDevice)
+            _replicate_from_local(url, pwd, name, idDevice)
+        # Start binaries synchronisation      
+        repli = Process(target = replication.main)
+        repli.start()
     start_prog()
 except Exception, e:
     config = subprocess.call(['python','configuration_window.py'])
