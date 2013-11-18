@@ -59,10 +59,10 @@ class Menu():
 
         self.ind = appindicator.Indicator (
                                   "cozy-files",
-                                  "/home/zoe/Documents/Cozy_Cloud/couchdb-fuse/icon/icon.png",
+                                  "/etc/cozy-files/couchdb-fuse/icon/icon.png",
                                   appindicator.CATEGORY_APPLICATION_STATUS)
         self.ind.set_status (appindicator.STATUS_ACTIVE)
-        self.ind.set_attention_icon ("/home/zoe/Documents/Cozy_Cloud/couchdb-fuse/icon/icon.png")
+        self.ind.set_attention_icon ("/etc/cozy-files/couchdb-fuse/icon/icon.png")
         # create a menu
         self.menu = gtk.Menu()
         # Add line to open cozy-files folder
@@ -156,15 +156,16 @@ class Menu():
             autoSync.hide()
 
         def pref(item):
-            config = subprocess.call(['python','preferences_window.py'])
+            config = subprocess.call(['python','/etc/cozy-files/couchdb-fuse/preferences_window.py'])
 
         def exit(item):
+            # Stop fuse and replication
             fuse.terminate()
             repli.terminate()
             path = _recover_path()
+            # Unmount cozy-files folder
             subprocess.call(["fusermount", "-u", path])
-            # stop replication.py + fuse.py + 
-            #remove icon
+            # Remove icon
             gtk.main_quit()
 
         # Add connection between menu and function
@@ -211,9 +212,9 @@ try:
         repli.start()
     start_prog()
 except Exception, e:
-    config = subprocess.call(['python','configuration_window.py'])
+    config = subprocess.call(['python','/etc/cozy-files/couchdb-fuse/configuration_window.py'])
     if config is 0:
-        end = subprocess.call(['python','end_configuration.py'])
+        end = subprocess.call(['python','/etc/cozy-files/couchdb-fuse/end_configuration.py'])
         start_prog()
     else:
         sys.exit(1)

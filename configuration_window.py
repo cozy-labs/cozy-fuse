@@ -69,7 +69,7 @@ def _create_filter(self):
 class Configuration:
     def __init__(self):  
         self.builder = Gtk.Builder()
-        self.builder.add_from_file('config_ui.glade')
+        self.builder.add_from_file('/etc/cozy-files/couchdb-fuse/config_ui.glade')
 
         window = self.builder.get_object("windowConf")
         window.show_all()

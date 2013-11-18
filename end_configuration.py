@@ -5,7 +5,7 @@ import sys
 class End:
     def __init__(self):  
         self.builder = Gtk.Builder()
-        self.builder.add_from_file('end_ui.glade')
+        self.builder.add_from_file('/etc/cozy-files/couchdb-fuse/end_ui.glade')
 
         window = self.builder.get_object("window")
         button = self.builder.get_object("ok")
