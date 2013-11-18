@@ -127,6 +127,14 @@ class Configuration:
                                   }
                               }"""
                         }
+                    },
+                "byFullPath": {
+                    "map": """function (doc) {
+                                  if (doc.docType === \"Folder\") {
+                                      emit(doc.path + '/' + doc.name, doc) 
+                                  }
+                              }"""
+                        }
                     }
                 }
 
@@ -143,6 +151,14 @@ class Configuration:
                     "map": """function (doc) {
                                   if (doc.docType === \"File\") {
                                       emit(doc.path, doc) 
+                                  }
+                              }"""
+                        }
+                    },
+                "byFullPath": {
+                    "map": """function (doc) {
+                                  if (doc.docType === \"File\") {
+                                      emit(doc.path + '/' + doc.name, doc) 
                                   }
                               }"""
                         }

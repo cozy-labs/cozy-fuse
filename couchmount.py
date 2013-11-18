@@ -92,7 +92,6 @@ class CouchFSDocument(fuse.Fuse):
         """
         Get directories
         """
-        dirs = {}
         for res in self.db.view("folder/all"):
             att = res.value["path"] + '/' + res.value["name"]
             if len(att) != 0:
@@ -131,25 +130,27 @@ class CouchFSDocument(fuse.Fuse):
         Get Attr :
             path {string}: file path
         """
-        path = _normalize_path(path)
+        exist = False
+        st = CouchStat()
         try:
-            st = CouchStat()
-            if path == '' or path in self.get_dirs().keys() :
+            if path is "/":
+                exist = True
+                st.st_mode = stat.S_IFDIR | 0775
+                st.st_nlink = 2                
+            for res in self.db.view("folder/byFullPath", key=path):
+                exist = True
                 st.st_mode = stat.S_IFDIR | 0775
                 st.st_nlink = 2
-            else:
-                exist = "false"
-                for res in self.db.view("file/all"):
-                    res = res.value
-                    if res["path"] + "/" + res["name"] == '/' + path:
-                        exist = "true"
-                        bin = res["binary"]["file"]["id"]
-                        att = self.db[bin].get('_attachments', {})
-                        data = att["file"]
-                        st.st_mode = stat.S_IFREG | 0664
-                        st.st_nlink = 1
-                        st.st_size = data['length']
-                if exist == "false":
+            if not exist:
+                for res in self.db.view("file/byFullPath", key=path):
+                    exist = True
+                    bin = res["binary"]["file"]["id"]
+                    att = self.db[bin].get('_attachments', {})
+                    data = att["file"]
+                    st.st_mode = stat.S_IFREG | 0664
+                    st.st_nlink = 1
+                    st.st_size = data['length']
+                if not exist:
                     return -errno.ENOENT
             return st
         except (KeyError, ResourceNotFound):
@@ -181,25 +182,22 @@ class CouchFSDocument(fuse.Fuse):
             size {integer}: size of file part to read
             offset {integer}: beginning of file part to read
         """
-        path = _normalize_path(path)
         try:
-            for res in self.db.view("file/all"):
-                res = res.value
-                if res["path"] + "/" + res["name"] == '/' + path:
-                    bin = res["binary"]["file"]["id"]
-                    data = self.db.get_attachment(bin, "file")
-                    if data == None:
-                        return ''
+            for res in self.db.view("file/byFullPath", key=path):
+                bin = res["binary"]["file"]["id"]
+                data = self.db.get_attachment(bin, "file")
+                if data == None:
+                    return ''
+                else:
+                    contain = data.read()
+                    slen = len(contain)
+                    if offset < slen:
+                        if offset + size > slen:
+                            size = slen - offset
+                        buf = contain[offset:offset+size]
                     else:
-                        contain = data.read()
-                        slen = len(contain)
-                        if offset < slen:
-                            if offset + size > slen:
-                                size = slen - offset
-                            buf = contain[offset:offset+size]
-                        else:
-                            buf = ''
-                        return buf
+                        buf = ''
+                    return buf
         except (KeyError, ResourceNotFound):
             pass
         return -errno.ENOENT
@@ -211,13 +209,10 @@ class CouchFSDocument(fuse.Fuse):
             buf {buffer}: data to write
             offset {integer}: beginning of file part to read
         """
-        path = _normalize_path(path)
         try:
-            for res in self.db.view("file/all"):
-                res = res.value
-                if res["path"] + "/" + res["name"] == '/' + path:   
-                    self.currentFile = self.currentFile + buf
-                    return len(buf)
+            for res in self.db.view("file/byFullPath", key=path): 
+                self.currentFile = self.currentFile + buf
+                return len(buf)
         except (KeyError, ResourceNotFound):
             pass
         return -errno.ENOENT
@@ -233,12 +228,10 @@ class CouchFSDocument(fuse.Fuse):
             all memory mappings are unmapped.
         """
         if self.currentFile != "": 
-            for res in self.db.view("file/all"):
-                res = res.value
-                if res["path"] + "/" + res["name"] == path:   
-                    bin = res["binary"]["file"]["id"]
-                    self.db.put_attachment(self.db[bin], self.currentFile, filename="file")
-                    _replicate_from_local(self, [bin])
+            for res in self.db.view("file/byFullPath", key=path):
+                bin = res["binary"]["file"]["id"]
+                self.db.put_attachment(self.db[bin], self.currentFile, filename="file")
+                _replicate_from_local(self, [bin])
             self.currentFile = ""
 
     def mknod(self, path, mode, dev):
@@ -271,13 +264,11 @@ class CouchFSDocument(fuse.Fuse):
             dirname, filename = u'', parts[0]
         else:
             dirname, filename = parts
-        for res in self.db.view("file/all"):
-            res = res.value
-            if res["path"] + "/" + res["name"] == '/' + path:
-                bin = res["binary"]["file"]["id"]
-                self.db.delete(self.db[bin])
-                self.db.delete(self.db[res["_id"]])
-                _replicate_from_local(self, [bin])
+        for res in self.db.view("file/byFullPath", key='/' + path):
+            bin = res["binary"]["file"]["id"]
+            self.db.delete(self.db[bin])
+            self.db.delete(self.db[res["_id"]])
+            _replicate_from_local(self, [bin])
 
     def truncate(self, path, size):
         """
@@ -319,12 +310,9 @@ class CouchFSDocument(fuse.Fuse):
         Remove directory
             path {string}: diretory path
         """
-        for res in self.db.view("folder/all"):
-            res = res.value
-            fullPath = res["path"] + "/" + res["name"]
-            if res["path"] + "/" + res["name"] == path:
-                self.db.delete(self.db[res['_id']])
-                return 0
+        for res in self.db.view("folder/byFullPath", key=path):
+            self.db.delete(self.db[res['_id']])
+            return 0
 
     def rename(self, pathfrom, pathto):
         """
@@ -332,33 +320,31 @@ class CouchFSDocument(fuse.Fuse):
             pathfrom {string}: old path
             pathto {string}: new path
         """
-        for doc in self.db.view("file/all"):
+        for doc in self.db.view("file/byFullPath", key=pathfrom):
             doc = doc.value
-            if doc["path"] + "/" + doc["name"] == pathfrom:
-                partialPaths = pathto.split('/')
-                name = partialPaths[len(partialPaths) -1]
-                filePath = pathto[:-(len(name)+1)]
-                doc.update({"name": name, "path": filePath})
-                self.db.save(doc) 
-        for doc in self.db.view("folder/all"):
+            partialPaths = pathto.split('/')
+            name = partialPaths[len(partialPaths) -1]
+            filePath = pathto[:-(len(name)+1)]
+            doc.update({"name": name, "path": filePath})
+            self.db.save(doc) 
+        for doc in self.db.view("folder/byFullPath", key=pathfrom):
             doc = doc.value
             fullPath = doc["path"] + "/" + doc["name"]
-            if fullPath == pathfrom:
-                partialPaths = pathto.split('/')
-                name = partialPaths[len(partialPaths) -1]
-                filePath = pathto[:-(len(name)+1)]
-                doc.update({"name": name, "path": filePath})
-                # Rename all subfiles
-                for res in self.db.view("file/byFolder", key=fullPath):
-                    pathfrom = res.value['path'] + '/' + res.value['name']
-                    pathto = filePath + '/' + name + '/' + res.value['name']
-                    self.rename(pathfrom, pathto)
-                for res in self.db.view("folder/byFolder", key=fullPath):
-                    pathfrom = res.value['path'] + '/' + res.value['name']
-                    pathto = filePath + '/' + name + '/' + res.value['name']
-                    self.rename(pathfrom, pathto)
-                self.db.save(doc)
-                return 0
+            partialPaths = pathto.split('/')
+            name = partialPaths[len(partialPaths) -1]
+            filePath = pathto[:-(len(name)+1)]
+            doc.update({"name": name, "path": filePath})
+            # Rename all subfiles
+            for res in self.db.view("file/byFolder", key=fullPath):
+                pathfrom = res.value['path'] + '/' + res.value['name']
+                pathto = filePath + '/' + name + '/' + res.value['name']
+                self.rename(pathfrom, pathto)
+            for res in self.db.view("folder/byFolder", key=fullPath):
+                pathfrom = res.value['path'] + '/' + res.value['name']
+                pathto = filePath + '/' + name + '/' + res.value['name']
+                self.rename(pathfrom, pathto)
+            self.db.save(doc)
+            return 0
 
     """def chown(self, path, user, group):
         print("chown %s %s %s" % (path,user,group))
