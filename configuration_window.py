@@ -126,8 +126,7 @@ class Configuration:
                                       emit(doc.path, doc) 
                                   }
                               }"""
-                        }
-                    },
+                        },
                 "byFullPath": {
                     "map": """function (doc) {
                                   if (doc.docType === \"Folder\") {
