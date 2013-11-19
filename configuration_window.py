@@ -85,7 +85,6 @@ class Configuration:
 
         window = self.builder.get_object("windowConf")
         window.show_all()
-        self.builder.get_object("spinner").hide()
         button = self.builder.get_object("config")
         button.connect("clicked", self.on_button_clicked)
         window.connect("delete-event", Gtk.main_quit)
