@@ -92,6 +92,7 @@ class CouchFSDocument(fuse.Fuse):
         """
         Get directories
         """
+        dirs={}
         for res in self.db.view("folder/all"):
             att = res.value["path"] + '/' + res.value["name"]
             if len(att) != 0:
