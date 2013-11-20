@@ -112,6 +112,7 @@ class CouchFSDocument(fuse.Fuse):
                     filenames = dirs.setdefault(u'/'.join(parents[1:]), set())
                     filenames.add(name)
                     parents.append(name)
+        print dirs
         return dirs
 
     def readdir(self, path, offset):
@@ -144,6 +145,7 @@ class CouchFSDocument(fuse.Fuse):
                 st.st_nlink = 2
             if not exist:
                 for res in self.db.view("file/byFullPath", key=path):
+                    res = res.value
                     exist = True
                     bin = res["binary"]["file"]["id"]
                     att = self.db[bin].get('_attachments', {})
@@ -153,7 +155,7 @@ class CouchFSDocument(fuse.Fuse):
                     st.st_size = data['length']
                 if not exist:
                     return -errno.ENOENT
-            return st
+            return st     
         except (KeyError, ResourceNotFound):
             return -errno.ENOENT
 
@@ -330,17 +332,16 @@ class CouchFSDocument(fuse.Fuse):
             self.db.save(doc) 
         for doc in self.db.view("folder/byFullPath", key=pathfrom):
             doc = doc.value
-            fullPath = doc["path"] + "/" + doc["name"]
             partialPaths = pathto.split('/')
             name = partialPaths[len(partialPaths) -1]
             filePath = pathto[:-(len(name)+1)]
             doc.update({"name": name, "path": filePath})
             # Rename all subfiles
-            for res in self.db.view("file/byFolder", key=fullPath):
+            for res in self.db.view("file/byFolder", key=pathfrom):
                 pathfrom = res.value['path'] + '/' + res.value['name']
                 pathto = filePath + '/' + name + '/' + res.value['name']
                 self.rename(pathfrom, pathto)
-            for res in self.db.view("folder/byFolder", key=fullPath):
+            for res in self.db.view("folder/byFolder", key=pathfrom):
                 pathfrom = res.value['path'] + '/' + res.value['name']
                 pathto = filePath + '/' + name + '/' + res.value['name']
                 self.rename(pathfrom, pathto)
