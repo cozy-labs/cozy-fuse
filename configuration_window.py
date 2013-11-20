@@ -34,8 +34,6 @@ def _recover_progression(self):
     progress = 0
     for rep in replications:
         progress = progress + rep["progress"]
-    print progress
-    print progress/200.
     return progress/200.
 
 def _create_filter(self):
@@ -223,12 +221,9 @@ class Configuration:
                         _replicate_from_local(self)      
                         yield True
                         # Quit 
-                        print "quit"
                         progress = _recover_progression(self)
-                        print progress
                         progress = progress*0.75 + 0.25
                         while progress < 0.99:
-                            print progress
                             progressbar.set_fraction(progress)               
                             yield True
                             progress = _recover_progression(self)
