@@ -1,9 +1,9 @@
 #! /bin/sh -e
 
-DAEMON="/etc/cozy-files/couchdb-fuse/replication.pyc" #ligne de commande du programme
+DAEMON="/etc/cozy-files/couchdb-fuse/cozy_files.pyc" #ligne de commande du programme
 DEAMON_OPT=""  #argument à utiliser par le programme
-DAEMONUSER="couchfuse" #utilisateur du programme
-DEAMON_NAME="replication.pyc" #Nom du programme (doit être identique à l'exécutable)
+DAEMONUSER="zoe" #utilisateur du programme
+DEAMON_NAME="cozy_files.pyc" #Nom du programme (doit être identique à l'exécutable)
 
 PATH="/sbin:/bin:/usr/sbin:/usr/bin" #Ne pas toucher
 

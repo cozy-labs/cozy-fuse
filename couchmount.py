@@ -112,7 +112,6 @@ class CouchFSDocument(fuse.Fuse):
                     filenames = dirs.setdefault(u'/'.join(parents[1:]), set())
                     filenames.add(name)
                     parents.append(name)
-        print dirs
         return dirs
 
     def readdir(self, path, offset):
