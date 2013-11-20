@@ -18,7 +18,15 @@ except ImportError:
 
 
 database = "cozy-files"
-server = Server('http://localhost:5984/')
+
+def database_connection():
+    try:
+        server = Server('http://localhost:5984/')
+        return server
+    except Exception, e:
+        database_connection()
+
+server = database_connection()
 # Read file
 f = open('/etc/cozy-files/couchdb.login')
 lines = f.readlines()
