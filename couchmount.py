@@ -187,6 +187,7 @@ class CouchFSDocument(fuse.Fuse):
         """
         try:
             for res in self.db.view("file/byFullPath", key=path):
+                res = res.value
                 bin = res["binary"]["file"]["id"]
                 data = self.db.get_attachment(bin, "file")
                 if data == None:
@@ -232,6 +233,7 @@ class CouchFSDocument(fuse.Fuse):
         """
         if self.currentFile != "": 
             for res in self.db.view("file/byFullPath", key=path):
+                res = res.value
                 bin = res["binary"]["file"]["id"]
                 self.db.put_attachment(self.db[bin], self.currentFile, filename="file")
                 _replicate_from_local(self, [bin])
@@ -268,6 +270,7 @@ class CouchFSDocument(fuse.Fuse):
         else:
             dirname, filename = parts
         for res in self.db.view("file/byFullPath", key='/' + path):
+            res = res.value
             bin = res["binary"]["file"]["id"]
             self.db.delete(self.db[bin])
             self.db.delete(self.db[res["_id"]])
@@ -314,6 +317,7 @@ class CouchFSDocument(fuse.Fuse):
             path {string}: diretory path
         """
         for res in self.db.view("folder/byFullPath", key=path):
+            res = res.value
             self.db.delete(self.db[res['_id']])
             return 0
 
