@@ -22,11 +22,13 @@ database = "cozy-files"
 def database_connection():
     try:
         server = Server('http://localhost:5984/')
+        server.version()
         return server
     except Exception, e:
+        time.sleep(5)
         database_connection()
 
-server = database_connection()
+server = Server('http://localhost:5984/')
 # Read file
 f = open('/etc/cozy-files/couchdb.login')
 lines = f.readlines()
@@ -202,6 +204,8 @@ def start_prog():
 
 
 try:
+    server = database_connection()
+    server = Server('http://localhost:5984/')
     db = server[database]
     r = requests.get('http://localhost:5984/_active_tasks')
     replications = json.loads(r.content)
