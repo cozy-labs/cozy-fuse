@@ -33,12 +33,17 @@ def _addFile(line, self):
             id_doc = line['doc']['_id']
             doc = self.db[id_doc]
             if doc['docType'] == 'File':
-                try:
-                    if self.ids[id_doc]:
+                if doc['binary']:  
+                    binary = doc['binary']['file']           
+                    self.ids[id_doc] = [binary['id'], binary['rev']]
+                    _replicate_to_local(self, [binary['id']])
+                else:
+                    try:
+                        if self.ids[id_doc]:
+                            return True
+                    except (KeyError):
+                        self.ids[id_doc] = ["", ""]
                         return True
-                except (KeyError):
-                    self.ids[id_doc] = ["", ""]
-                    return True
         else:
             return False
     except (Exception):
@@ -93,7 +98,7 @@ class Replication():
             changes = self.db.changes(feed='continuous', heartbeat='1000', since=device['change'], include_docs=True)
             for line in changes:
                 if not _isDevice(line):
-                    device['change'] = line['seq'] + 1
+                    device['change'] = line['seq'] 
                     self.db.save(device)
                     id_doc = line['doc']
                     if not _deleteFile(line, self):
