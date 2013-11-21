@@ -190,9 +190,7 @@ def start_prog():
     # Start fuse
     fuse = Process(target = couchmount.main)
     fuse.start()
-    # Start replication
-    repli = Process(target = replication.main)
-    repli.start()
+    
     # Start menu
     indicator = Menu(fuse, repli)
     gtk.main()
@@ -226,8 +224,12 @@ try:
 except Exception, e:
     config = subprocess.call(['python','/etc/cozy-files/couchdb-fuse/configuration_window.py'])
     if config is 0:
-        end = subprocess.call(['python','/etc/cozy-files/couchdb-fuse/end_configuration.py'])
-        start_prog()
+        repli = Process(target = replication.main)
+        repli.start()
+        binaries_download = subprocess.call(['python','/etc/cozy-files/couchdb-fuse/binaries_download.py'])
+        if binaries_download is 0:
+            end = subprocess.call(['python','/etc/cozy-files/couchdb-fuse/end_configuration.py'])
+            start_prog()
     else:
         sys.exit(1)
 
