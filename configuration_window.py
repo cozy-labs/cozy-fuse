@@ -103,8 +103,7 @@ class Configuration:
                                       emit(doc.id, doc) 
                                   }
                               }"""
-                        }
-                    },
+                        },
                 "byUrl": {
                     "map": """function (doc) {
                                   if (doc.docType === \"Device\") {
@@ -113,7 +112,7 @@ class Configuration:
                               }"""
                         }
                     }
-                } 
+                }
 
         self.db["_design/folder"] = {
             "views": {
