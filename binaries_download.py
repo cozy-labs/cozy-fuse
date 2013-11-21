@@ -18,12 +18,10 @@ db = server['cozy-files']
 
 class Download:
     def __init__(self):  
-        print "init"
         def start_download():
             binaries = len(db.view('binary/all'))
             files = len(db.view('file/all'))
             while binaries/float(files) < 1: 
-                print binaries/float(files)
                 progressbar.set_fraction(binaries/float(files))
                 yield True
                 binaries = len(db.view('binary/all'))

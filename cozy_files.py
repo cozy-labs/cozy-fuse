@@ -217,9 +217,9 @@ try:
             idDevice = device['_id']
             _replicate_to_local(url, pwd, name, idDevice)
             _replicate_from_local(url, pwd, name, idDevice)
-        # Start binaries synchronisation      
-        repli = Process(target = replication.main)
-        repli.start()
+    # Start binaries synchronisation      
+    repli = Process(target = replication.main)
+    repli.start()
     start_prog()
 except Exception, e:
     config = subprocess.call(['python','/etc/cozy-files/couchdb-fuse/configuration_window.py'])
