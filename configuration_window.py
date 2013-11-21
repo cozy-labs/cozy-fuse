@@ -193,7 +193,7 @@ class Configuration:
                 yield True
                 data = {'login': self.device}
                 try:
-                    r = post(self.url + '/device', data=data, auth=('owner', self.pwdCozy))                 
+                    r = post(self.url + '/device/', data=data, auth=('owner', self.pwdCozy))                 
                     if r.status_code == 401:
                         self.builder.get_object("alert").set_text('Votre mot de passe est incorrect') 
                         progressbar.set_fraction(0) 
