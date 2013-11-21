@@ -21,14 +21,19 @@ class Download:
         def start_download():
             binaries = len(db.view('binary/all'))
             files = len(db.view('file/all'))
-            while binaries/float(files) < 1: 
-                progressbar.set_fraction(binaries/float(files))
-                yield True
-                binaries = len(db.view('binary/all'))
-                files = len(db.view('file/all'))
-            Gtk.main_quit()
-            sys.exit(0)  
-            yield False
+            if files is 0:
+                Gtk.main_quit()
+                sys.exit(0)  
+                yield False
+            else:
+                while binaries/float(files) < 1: 
+                    progressbar.set_fraction(binaries/float(files))
+                    yield True
+                    binaries = len(db.view('binary/all'))
+                    files = len(db.view('file/all'))
+                Gtk.main_quit()
+                sys.exit(0)  
+                yield False
 
 
         self.builder = Gtk.Builder()
