@@ -104,6 +104,14 @@ class Configuration:
                                   }
                               }"""
                         }
+                    },
+                "byUrl": {
+                    "map": """function (doc) {
+                                  if (doc.docType === \"Device\") {
+                                      emit(doc.url, doc) 
+                                  }
+                              }"""
+                        }
                     }
                 } 
 
