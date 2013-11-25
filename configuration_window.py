@@ -81,6 +81,7 @@ class Configuration:
         self.builder = Gtk.Builder()
         self.builder.add_from_file('/etc/cozy-files/couchdb-fuse/config_ui.glade')
         window = self.builder.get_object("windowConf")
+        window.connect('destroy', self.quit)
         window.show_all()
         button = self.builder.get_object("config")
         button.connect("clicked", self.on_button_clicked)
@@ -244,6 +245,10 @@ class Configuration:
 
         task = start_replication(self)
         gobject.idle_add(task.next)
+
+    def quit(self, widget):
+        Gtk.main_quit()
+        sys.exit(0)
 
 if __name__ == "__main__":
     Configuration()	

@@ -24,6 +24,7 @@ class Preferences:
         self.builder.add_from_file('/etc/cozy-files/couchdb-fuse/preferences_ui.glade')
 
         window = self.builder.get_object("window")
+        window.connect('destroy', self.quit)
         button = self.builder.get_object("save")
         button.connect("clicked", self.on_button_clicked)
         res = db.view("device/all")
@@ -41,6 +42,10 @@ class Preferences:
         Gtk.main()
 
     def on_button_clicked(self, widget):        
+        Gtk.main_quit()
+        sys.exit(0)
+
+    def quit(self, widget):
         Gtk.main_quit()
         sys.exit(0)
 

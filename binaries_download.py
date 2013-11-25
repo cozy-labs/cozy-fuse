@@ -39,12 +39,17 @@ class Download:
         self.builder = Gtk.Builder()
         self.builder.add_from_file('/etc/cozy-files/couchdb-fuse/binaries_download_ui.glade')
         window = self.builder.get_object("window")
+        window.connect('destroy', self.quit)
         progressbar = self.builder.get_object("progressbar")
         window.show_all()
 
         task = start_download()
         gobject.idle_add(task.next)
         Gtk.main()
+
+    def quit(self, widget):
+        Gtk.main_quit()
+        sys.exit(0)
 
 if __name__ == "__main__":
     Download()	
