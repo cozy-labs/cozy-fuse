@@ -235,6 +235,11 @@ class CouchFSDocument(fuse.Fuse):
                 res = res.value
                 bin = res["binary"]["file"]["id"]
                 self.db.put_attachment(self.db[bin], self.currentFile, filename="file")
+                binary = self.db[bin]
+                print binary
+                print binary['_rev']
+                res['binary']['file']['rev'] = binary['_rev']  
+                self.db.save(res)
                 _replicate_from_local(self, [bin])
             self.currentFile = ""
 
