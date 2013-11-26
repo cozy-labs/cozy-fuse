@@ -19,7 +19,6 @@ except ImportError:
 
 database = "cozy-files"
 path_cozy = "/usr/local/cozy/cozy-files/couchdb-fuse"
-path = '/usr/local/cozy/cozy-files/couchdb-fuse/interface'
 
 def database_connection():
     try:
@@ -168,7 +167,7 @@ class Menu():
             autoSync.hide()
 
         def pref(item):
-            config = subprocess.call(['python','%s/preferences_window.py' % path_cozy])
+            config = subprocess.call(['python','%s/windows/preferences_window.py' % path_cozy])
 
         def exit(item):
             # Stop fuse and replication
@@ -224,13 +223,13 @@ try:
     repli.start()
     start_prog()
 except Exception, e:
-    config = subprocess.call(['python','%s/configuration_window.py' % path_cozy])
+    config = subprocess.call(['python','%s/windows/configuration_window.py' % path_cozy])
     if config is 0:
         repli = Process(target = replication.main)
         repli.start()
-        binaries_download = subprocess.call(['python','%s/binaries_download.py' % path_cozy])
+        binaries_download = subprocess.call(['python','%s/windows/binaries_download.py' % path_cozy])
         if binaries_download is 0:
-            end = subprocess.call(['python','%s/end_configuration.py' % path_cozy])
+            end = subprocess.call(['python','%s/windows/end_configuration.py' % path_cozy])
             start_prog()
     else:
         sys.exit(1)
