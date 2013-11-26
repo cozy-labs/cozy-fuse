@@ -3,6 +3,7 @@ from gi.repository import Gtk
 from requests import post
 import requests
 import gobject
+import os
 from couchdb import Database, Document, ResourceNotFound, Server
 from couchdb.client import Row, ViewResults
 import threading
@@ -47,9 +48,9 @@ def _create_filter(self):
             device = device.value
             # Update device
             device['password'] = self.pwdDevice
-            device['folder'] = self.folder
             device['change'] = 0
             device['url'] = self.url
+            device['folder'] = self.folder
             self.db.save(device)
             # Generate filter
             filter = """function(doc, req) {
@@ -190,9 +191,9 @@ class Configuration:
             self.pwdCozy = self.builder.get_object("password").get_text()
             self.url = self.builder.get_object("cozyUrl").get_text()
             self.device = self.builder.get_object("device").get_text()
-            self.folder = self.builder.get_object("folder").get_current_folder()
+            self.folder = "%s/cozy-files" % os.environ['HOME']
             progressbar = self.builder.get_object("progressbar")
-            if self.pwdCozy is "" or self.url is "" or self.device is "" or self.folder is "":
+            if self.pwdCozy is "" or self.url is "" or self.device is "":
                 self.builder.get_object("alert").set_text('Tous les champs doivent etre rempli')
                 progressbar.set_fraction(0) 
                 yield False
