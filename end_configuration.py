@@ -1,11 +1,12 @@
 #!/usr/bin/python
 from gi.repository import Gtk
 import sys
+path = '/usr/local/cozy/cozy-files/couchdb-fuse/interface'
 
 class End:
     def __init__(self):  
         self.builder = Gtk.Builder()
-        self.builder.add_from_file('/etc/cozy-files/couchdb-fuse/end_ui.glade')
+        self.builder.add_from_file('%s/end_ui.glade' % path)
 
         window = self.builder.get_object("window")
         window.connect('destroy', self.quit)

@@ -2,11 +2,12 @@
 from gi.repository import Gtk
 import sys
 from couchdb import Server
+path = '/usr/local/cozy/cozy-files/couchdb-fuse/interface'
 
 database = "cozy-files"
 server = Server('http://localhost:5984/')
 # Read file
-f = open('/etc/cozy-files/couchdb.login')
+f = open('/etc/cozy/cozy-files/couchdb.login')
 lines = f.readlines()
 f.close()
 username = lines[0].strip()
@@ -21,7 +22,7 @@ db = server[database]
 class Preferences:
     def __init__(self):  
         self.builder = Gtk.Builder()
-        self.builder.add_from_file('/etc/cozy-files/couchdb-fuse/preferences_ui.glade')
+        self.builder.add_from_file('%s/preferences_ui.glade' % path)
 
         window = self.builder.get_object("window")
         window.connect('destroy', self.quit)

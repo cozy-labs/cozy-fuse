@@ -5,10 +5,11 @@ from couchdb.client import Row, ViewResults
 import gobject
 import sys
 import time
+path = '/usr/local/cozy/cozy-files/couchdb-fuse/interface'
 
 server = Server('http://localhost:5984/')
 # Read file
-f = open('/etc/cozy-files/couchdb.login')
+f = open('/etc/cozy/cozy-files/couchdb.login')
 lines = f.readlines()
 f.close()
 username = lines[0].strip()
@@ -37,7 +38,7 @@ class Download:
 
 
         self.builder = Gtk.Builder()
-        self.builder.add_from_file('/etc/cozy-files/couchdb-fuse/binaries_download_ui.glade')
+        self.builder.add_from_file('%s/binaries_download_ui.glade' % path)
         window = self.builder.get_object("window")
         window.connect('destroy', self.quit)
         progressbar = self.builder.get_object("progressbar")

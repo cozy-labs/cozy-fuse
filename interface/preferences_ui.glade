@@ -18,7 +18,7 @@
             <property name="margin_right">50</property>
             <property name="margin_top">38</property>
             <property name="margin_bottom">37</property>
-            <property name="pixbuf">/etc/cozy-files/couchdb-fuse/icon/small_icon.png</property>
+            <property name="pixbuf">/usr/local/cozy/cozy-files/couchdb-fuse/icon/small_icon.png</property>
           </object>
           <packing>
             <property name="left_attach">1</property>

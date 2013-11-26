@@ -14,6 +14,7 @@ try:
 except ImportError:
     import json # Python 2.6
 database = "cozy-files"
+path = '/usr/local/cozy/cozy-files/couchdb-fuse/interface'
 
 def _replicate_to_local(self):
     target = 'http://%s:%s@localhost:5984/%s' % (self.username, self.password, database)
@@ -79,7 +80,7 @@ def _create_filter(self):
 class Configuration:
     def __init__(self):  
         self.builder = Gtk.Builder()
-        self.builder.add_from_file('/etc/cozy-files/couchdb-fuse/config_ui.glade')
+        self.builder.add_from_file('%s/config_ui.glade' % path)
         window = self.builder.get_object("windowConf")
         window.connect('destroy', self.quit)
         window.show_all()
@@ -88,7 +89,7 @@ class Configuration:
         window.connect("delete-event", Gtk.main_quit)
         self.server = Server('http://localhost:5984/')
         # Read file
-        f = open('/etc/cozy-files/couchdb.login')
+        f = open('/etc/cozy/cozy-files/couchdb.login')
         lines = f.readlines()
         f.close()
         self.username = lines[0].strip()
