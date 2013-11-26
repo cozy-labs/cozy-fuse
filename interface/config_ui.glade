@@ -55,7 +55,10 @@
           <object class="GtkLabel" id="label2">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="margin_left">21</property>
+            <property name="halign">start</property>
+            <property name="valign">center</property>
+            <property name="margin_left">30</property>
+            <property name="margin_right">10</property>
             <property name="label" translatable="yes">Le nom de votre device</property>
             <attributes>
               <attribute name="font-desc" value="Sawasdee 12"/>
@@ -75,7 +78,7 @@
             <property name="can_focus">True</property>
             <property name="margin_left">5</property>
             <property name="margin_right">50</property>
-            <property name="margin_bottom">19</property>
+            <property name="margin_bottom">15</property>
             <property name="visibility">False</property>
             <property name="invisible_char">•</property>
             <property name="shadow_type">none</property>
