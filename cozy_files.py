@@ -18,7 +18,7 @@ except ImportError:
 
 
 database = "cozy-files"
-path_cozy = "/usr/local/cozy/cozy-files"
+path_cozy = "/usr/local/cozy/cozy-files/couchdb-fuse"
 path = '/usr/local/cozy/cozy-files/couchdb-fuse/interface'
 
 def database_connection():
@@ -71,10 +71,10 @@ class Menu():
 
         self.ind = appindicator.Indicator (
                                   "cozy-files",
-                                  "%s/couchdb-fuse/icon/icon.png" % path_cozy,
+                                  "%s/icon/icon.png" % path_cozy,
                                   appindicator.CATEGORY_APPLICATION_STATUS)
         self.ind.set_status (appindicator.STATUS_ACTIVE)
-        self.ind.set_attention_icon ("%s/couchdb-fuse/icon/icon.png" %path_cozy)
+        self.ind.set_attention_icon ("%s/icon/icon.png" %path_cozy)
         # create a menu
         self.menu = gtk.Menu()
         # Add line to open cozy-files folder
@@ -168,7 +168,7 @@ class Menu():
             autoSync.hide()
 
         def pref(item):
-            config = subprocess.call(['python','%s/preferences_window.py' % path])
+            config = subprocess.call(['python','%s/preferences_window.py' % path_cozy])
 
         def exit(item):
             # Stop fuse and replication
@@ -224,13 +224,13 @@ try:
     repli.start()
     start_prog()
 except Exception, e:
-    config = subprocess.call(['python','%s/configuration_window.py' % path])
+    config = subprocess.call(['python','%s/configuration_window.py' % path_cozy])
     if config is 0:
         repli = Process(target = replication.main)
         repli.start()
-        binaries_download = subprocess.call(['python','%s/binaries_download.py' % path])
+        binaries_download = subprocess.call(['python','%s/binaries_download.py' % path_cozy])
         if binaries_download is 0:
-            end = subprocess.call(['python','%s/end_configuration.py' % path])
+            end = subprocess.call(['python','%s/end_configuration.py' % path_cozy])
             start_prog()
     else:
         sys.exit(1)
