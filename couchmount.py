@@ -8,26 +8,15 @@
 # you should have received as part of this distribution.
 
 
-from couchdb import Database, Document, ResourceNotFound, Server
-from couchdb.client import Row, ViewResults
+from couchdb import ResourceNotFound, Server
 import errno
 import fuse
 import os
 import stat
-import sys
 import time
-import base64
-import replication
-#try:
-#    import _thread # Python 3
-#except ImportError:
-#    import thread
-#from threading import Thread
-from urllib import quote, unquote    
 
 fuse.fuse_python_api = (0, 2)
 database = "cozy-files"
-
 
 class CouchStat(fuse.Stat):
     def __init__(self):
@@ -45,7 +34,7 @@ class CouchStat(fuse.Stat):
 def _normalize_path(path):
     return u'/'.join([part for part in path.split(u'/') if part != u''])
 
-def _recover_path(db): 
+def _recover_path(db):
     res = db.view("device/all")
     if not res:
         time.sleep(5)
@@ -62,16 +51,16 @@ def _replicate_from_local(self, ids):
     source = 'http://%s:%s@localhost:5984/%s' % (self.username, self.password, database)
     url = self.urlCozy.split('/')
     target = "https://%s:%s@%s/cozy" % (self.loginCozy, self.passwordCozy, url[2])
-    self.rep = self.server.replicate(source, target, doc_ids=ids)  
+    self.rep = self.server.replicate(source, target, doc_ids=ids)
 
 
 class CouchFSDocument(fuse.Fuse):
     def __init__(self, mountpoint, uri=None, *args, **kwargs):
-        fuse.Fuse.__init__(self, *args, **kwargs)        
+        fuse.Fuse.__init__(self, *args, **kwargs)
         self.fuse_args.mountpoint = mountpoint
         self.fuse_args.add('allow_other')
-        db_uri = uri
         self.server = Server('http://localhost:5984/')
+
         # Add local credentials
         f = open('/etc/cozy/cozy-files/couchdb.login')
         lines = f.readlines()
@@ -87,7 +76,7 @@ class CouchFSDocument(fuse.Fuse):
             self.urlCozy = device.value['url']
             self.passwordCozy = device.value['password']
             self.loginCozy = device.value['login']
-       
+
     def get_dirs(self):
         """
         Get directories
@@ -137,7 +126,7 @@ class CouchFSDocument(fuse.Fuse):
             if path is "/":
                 exist = True
                 st.st_mode = stat.S_IFDIR | 0775
-                st.st_nlink = 2                
+                st.st_nlink = 2
             for res in self.db.view("folder/byFullPath", key=path):
                 exist = True
                 st.st_mode = stat.S_IFDIR | 0775
@@ -154,7 +143,7 @@ class CouchFSDocument(fuse.Fuse):
                     st.st_size = data['length']
                 if not exist:
                     return -errno.ENOENT
-            return st     
+            return st
         except (KeyError, ResourceNotFound):
             return -errno.ENOENT
 
@@ -213,24 +202,24 @@ class CouchFSDocument(fuse.Fuse):
             offset {integer}: beginning of file part to read
         """
         try:
-            for res in self.db.view("file/byFullPath", key=path): 
+            for res in self.db.view("file/byFullPath", key=path):
                 self.currentFile = self.currentFile + buf
                 return len(buf)
         except (KeyError, ResourceNotFound):
             pass
         return -errno.ENOENT
-    
+
     def release(self, path, fuse_file_info):
         """
         Release an open file
             path {string}: file path
             fuse_file_info {struct}: information about open file
-            
-            Release is called when there are no more references 
-            to an open file: all file descriptors are closed and 
+
+            Release is called when there are no more references
+            to an open file: all file descriptors are closed and
             all memory mappings are unmapped.
         """
-        if self.currentFile != "": 
+        if self.currentFile != "":
             for res in self.db.view("file/byFullPath", key=path):
                 res = res.value
                 bin = res["binary"]["file"]["id"]
@@ -238,7 +227,7 @@ class CouchFSDocument(fuse.Fuse):
                 binary = self.db[bin]
                 print binary
                 print binary['_rev']
-                res['binary']['file']['rev'] = binary['_rev']  
+                res['binary']['file']['rev'] = binary['_rev']
                 self.db.save(res)
                 _replicate_from_local(self, [bin])
             self.currentFile = ""
@@ -259,7 +248,7 @@ class CouchFSDocument(fuse.Fuse):
         self.db.put_attachment(self.db[id_bin], '', filename="file")
         rev = self.db[id_bin]["_rev"]
         newFile = {"name": name, "path": filePath, "binary":{"file": {"id": id_bin, "rev": rev}}, "docType": "File"}
-        id_doc = self.db.create(newFile)
+        self.db.create(newFile)
         _replicate_from_local(self, [id_bin])
 
     def unlink(self, path):
@@ -297,12 +286,6 @@ class CouchFSDocument(fuse.Fuse):
         return 0
 
 
-    def chmod ( self, path, mode ):
-        return 0
-
-    def chown ( self, path, uid, gid ):
-        return 0
-
     def mkdir(self, path, mode):
         """
         Create directory
@@ -312,7 +295,11 @@ class CouchFSDocument(fuse.Fuse):
         partialPaths = path.split('/')
         name = partialPaths[len(partialPaths) -1]
         folderPath = path[:-(len(name)+1)]
-        id_doc = self.db.create({"name": name, "path": folderPath, "docType": "Folder"})
+        self.db.create({
+            "name": name,
+            "path": folderPath,
+            "docType": "Folder"
+        })
         return 0
 
     def rmdir(self, path):
@@ -337,7 +324,7 @@ class CouchFSDocument(fuse.Fuse):
             name = partialPaths[len(partialPaths) -1]
             filePath = pathto[:-(len(name)+1)]
             doc.update({"name": name, "path": filePath})
-            self.db.save(doc) 
+            self.db.save(doc)
         for doc in self.db.view("folder/byFullPath", key=pathfrom):
             doc = doc.value
             partialPaths = pathto.split('/')
@@ -356,15 +343,6 @@ class CouchFSDocument(fuse.Fuse):
             self.db.save(doc)
             return 0
 
-    """def chown(self, path, user, group):
-        print("chown %s %s %s" % (path,user,group))
-        return os.chown(self.p(path), user, group)
-
-    def chmod(self, path, mode):
-        print("chmod %s %s" % (path,mode))
-        return os.chmod(self.p(path), mode)
-    """
-
 
     def fsync(self, path, isfsyncfile):
         """
@@ -374,6 +352,13 @@ class CouchFSDocument(fuse.Fuse):
         """
 
         return 0
+
+    def chmod(self, path, mode):
+        return 0
+
+    def chown(self, path, uid, gid):
+        return 0
+
 
     def statfs(self):
         """
@@ -389,12 +374,15 @@ class CouchFSDocument(fuse.Fuse):
         the kernel that the info is not available.
         """
         st = fuse.StatVfs()
-        block_size = 1024
+
         blocks = 1024 * 1024
+        block_size = 1024
         blocks_free = blocks
         blocks_avail = blocks_free
+
         files = 0
         files_free = 0
+
         st.f_bsize = block_size
         st.f_frsize = block_size
         st.f_blocks = blocks
@@ -402,42 +390,54 @@ class CouchFSDocument(fuse.Fuse):
         st.f_bavail = blocks_avail
         st.f_files = files
         st.f_ffree = files_free
+
         return st
 
 
-def _init():
-    try:
-        server = Server('http://localhost:5984/')
-        # Read file
-        f = open('/etc/cozy/cozy-files/couchdb.login')
-        lines = f.readlines()
-        f.close()
-        username = lines[0].strip()
-        password = lines[1].strip()
-        
-        # Add credentials
-        server.resource.credentials = (username, password)
-        try:
-            db = server[database]
-        except Exception, e:
-            db = server.create(database)
-            # add user
-        if '_design/device' not in db:
-           db["_design/device"] = {"views": {"all": {"map": "function (doc) {\n" + 
-                "    if (doc.docType === \"Device\") {\n        emit(doc.id, doc) \n    }\n}"}}} 
-        folder = _recover_path(db)
-        db = 'http://localhost:5984/%s' % database
-        fs = CouchFSDocument(folder, db)
-        #replication.Replication()
-        fs.parse(errex=1)
-        fs.main()
-    except Exception, e:
-        time.sleep(5)
-        _init()
 
 def main():
-    args = sys.argv[1:]
-    _init()   
+    try:
+        server = Server('http://localhost:5984/')
+
+        # Get credentials from config file.
+        credentialsFile = open('/etc/cozy/cozy-files/couchdb.login')
+        lines = credentialsFile.readlines()
+        credentialsFile.close()
+        username = lines[0].strip()
+        password = lines[1].strip()
+
+        # Set credentials on server.
+        server.resource.credentials = (username, password)
+
+        # Connect on database, create it, if it does'nt exist.
+        try:
+            db = server[database]
+        except Exception:
+            db = server.create(database)
+
+        # Create desing documents
+        if '_design/device' not in db:
+            db["_design/device"] = {
+                "views": {
+                    "all": {
+                        "map": "function (doc) {\n" +
+                               "    if (doc.docType === \"Device\") {\n" +
+                               "        emit(doc.id, doc) \n    }\n}"
+                    }
+                }
+            }
+
+        folder = _recover_path(db)
+        db = 'http://localhost:5984/%s' % database
+
+        fs = CouchFSDocument(folder, db)
+        fs.parse(errex=1)
+        fs.main()
+
+    except Exception:
+        time.sleep(5)
+        main()
+
 
 if __name__ == '__main__':
     main()
