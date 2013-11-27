@@ -34,19 +34,18 @@ def _addFile(line, self):
             doc = self.db[id_doc]
             if doc['docType'] == 'File':
                 if doc['binary']:  
-                    binary = doc['binary']['file']           
+                    binary = doc['binary']['file']        
                     self.ids[id_doc] = [binary['id'], binary['rev']]
                     _replicate_to_local(self, [binary['id']])
+                else if self.ids[id_doc]:
+                    return True
                 else:
-                    try:
-                        if self.ids[id_doc]:
-                            return True
-                    except (KeyError):
-                        self.ids[id_doc] = ["", ""]
-                        return True
+                    self.ids[id_doc] = ["", ""]
+                    return True
         else:
             return False
     except (Exception):
+        self.ids[id_doc] = ["", ""]
         return True
 
 def _updateFile(line, self): 
@@ -64,10 +63,7 @@ def _updateFile(line, self):
 
 def _isDevice(line):
     try:
-        if line['doc']['docType'] != "Device":                    
-            return False
-        else:
-            return True
+        return str(line['doc']['docType']) == "Device"
     except (Exception):
         return False
 

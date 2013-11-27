@@ -64,6 +64,7 @@ def _one_shot_replicate_from_local(url, pwd, name, idDevice):
     url = url.split('/')
     target = "https://%s:%s@%s/cozy" % (name, pwd, url[2])
     rep = server.replicate(source, target, filter="%s/filter" %idDevice)
+    
 class Menu():
     def __init__(self, fuse, repli): 
         db = server[database]
