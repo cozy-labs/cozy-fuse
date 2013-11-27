@@ -37,7 +37,7 @@ def _addFile(line, self):
                     binary = doc['binary']['file']        
                     self.ids[id_doc] = [binary['id'], binary['rev']]
                     _replicate_to_local(self, [binary['id']])
-                else if self.ids[id_doc]:
+                elif self.ids[id_doc]:
                     return True
                 else:
                     self.ids[id_doc] = ["", ""]
