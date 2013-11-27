@@ -22,7 +22,7 @@ attachments to be mounted on a virtual filesystem and edited directly.""",
     url = 'https://github.com/poupotte/couchdb-fuse',
     zip_safe = True,
 
-    py_modules = ['couchmount'],
+    py_modules = ['cozy_files'],
 
     classifiers = [
         'Development Status :: 3 - Alpha',
@@ -35,9 +35,14 @@ attachments to be mounted on a virtual filesystem and edited directly.""",
 
     entry_points = {
         'console_scripts': [
-            'couchmount = couchmount:main',
+            'cozy_files = cozy_files:main',
         ],
-    },
+    },    
+    depends = 'python-gtk2, python-glade2',
 
-    install_requires = ['CouchDB>=0.5'],
+    install_requires = [
+    'fuse-python>=0.2', 
+    'CouchDB>=0.9', 
+    'requests>=2.0.1'
+    ]
 )
