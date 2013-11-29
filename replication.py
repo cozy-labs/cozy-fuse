@@ -112,7 +112,6 @@ class Replication():
                         self.ids[id_doc] = ["", ""]
 
         except Exception, e:
-            self.ids[id_doc] = ["", ""]
             print 'An error occured while replicating creation for:'
             print 'doc %s' %line['doc']['_id']
             print e
