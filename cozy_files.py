@@ -46,11 +46,11 @@ def _get_remote_url(name, password, url):
     Return remote url built from username, password and remote url.
     '''
     url = url.split('/')[2]
-    return "https://%s:%s@%s/cozy" % (name, pwd, url[2])
+    return "https://%s:%s@%s/cozy" % (name, pwd, url)
 
 def _replicate_to_local(url, pwd, name, id_device):
     target =  LOCAL_DB_URL
-    source = _get_remote_url(name, pwd, url[2])
+    source = _get_remote_url(name, pwd, url)
     server.replicate(source, target,continuous=True,
                      filter="%s/filter" % id_device)
 
@@ -67,7 +67,7 @@ def _one_shot_replicate_to_local(url, pwd, name, id_device):
 
 def _one_shot_replicate_from_local(url, pwd, name, id_device):
     target = _get_remote_url(name, pwd, url)
-    source =  LOCAL_DB_URL()
+    source =  LOCAL_DB_URL
     server.replicate(source, target, filter="%s/filter" % id_device)
 
 
@@ -121,16 +121,16 @@ class Menu():
         self.menu.show()
         self.ind.set_menu(self.menu)
 
-        def _recover_path(self):
+        def _recover_path():
             res = db.view("device/all")
             if not res:
                 time.sleep(5)
-                return self._recover_path()
+                return _recover_path()
             else:
                 for device in res:
                     if not device.value["folder"]:
                         time.sleep(5)
-                        return self._recover_path()
+                        return _recover_path()
                     else:
                         return device.value['folder']
 
@@ -219,7 +219,7 @@ def start_prog():
     fuse.start()
 
     # Start menu
-    Menu(fuse, repli)
+    indicator = Menu(fuse, repli)
     gtk.main()
 
     fuse.join()
