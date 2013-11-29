@@ -41,7 +41,7 @@ server.resource.credentials = (USERNAME, PASSWORD)
 
 LOCAL_DB_URL = 'http://%s:%s@localhost:5984/%s' % (USERNAME, PASSWORD, DATABASE)
 
-def _get_remote_url(name, password, url):
+def _get_remote_url(name, pwd, url):
     '''
     Return remote url built from username, password and remote url.
     '''

@@ -48,7 +48,12 @@ class Replication():
 
             self.ids = {}
             for res in self.db.view("file/all"):
-                self.ids[res.id] = ["", ""]
+                id_binary = res.value['binary']['file']['id']
+                if id_binary in self.db:
+                    binary = self.db[id_binary]
+                    self.ids[res.id] = [id_binary, binary.rev]
+                else:
+                    self.ids[res.id] = [id_binary, ""]
 
             changes = self.db.changes(feed='continuous',
                                       heartbeat='1000',
@@ -97,31 +102,36 @@ class Replication():
         try:
             id_doc = line['doc']['_id']
             doc = self.db[id_doc]
-            if doc['docType'] == 'File':
-                if doc['binary']:
-                    binary = doc['binary']['file']
-                    self.ids[id_doc] = [binary['id'], binary['rev']]
-                    self._replicate_to_local([binary['id']])
-                elif not self.ids[id_doc]:
-                    self.ids[id_doc] = ["", ""]
+            if 'docType' in doc:
+                if doc['docType'] == 'File':
+                    if doc['binary']:
+                        binary = doc['binary']['file']
+                        self.ids[id_doc] = [binary['id'], binary['rev']]
+                        self._replicate_to_local([binary['id']])
+                    elif not self.ids[id_doc]:
+                        self.ids[id_doc] = ["", ""]
 
-        except (Exception):
+        except Exception, e:
             self.ids[id_doc] = ["", ""]
-            print 'An error occured whie replicating craetion for'
-            print line
+            print 'An error occured while replicating creation for:'
+            print 'doc %s' %line['doc']['_id']
+            print e
 
-    def _delete_file(line, self):
+    def _delete_file(self, line):
         '''
         Remove binary document if a file has been deleted.
         '''
         try:
-            binary = self.ids[line['doc']['_id']][0]
-            if self.db[binary]:
-                self.db.delete(self.db[binary])
-                self._replicate_to_local(self, [binary])
-        except:
-            print 'An error occured whie replicating deletion for:'
-            print line
+            id_doc = self.ids.get(line['doc']['_id'])
+            if id_doc is not None :
+                binary = self.ids[line['doc']['_id']][0]
+                if self.db[binary]:
+                    self.db.delete(self.db[binary])
+                    self._replicate_to_local([binary])
+        except Exception, e:
+            print 'An error occured while replicating deletion for:'
+            print 'doc %s' %line['doc']['_id']
+            print e
 
     def _update_file(self, line):
         '''
@@ -134,10 +144,11 @@ class Replication():
                 binary = doc['binary']['file']
                 if binary['rev'] != self.ids[id_doc][1]:
                     self.ids[id_doc] = [binary['id'], binary['rev']]
-                    self._replicate_to_local(self, [binary['id']])
-        except:
-            print 'An error occured whie replicating update for:'
-            print line
+                    self._replicate_to_local([binary['id']])
+        except Exception, e:
+            print 'An error occured while replicating update for:'
+            print 'doc %s' %line['doc']['_id']
+            print e
 
     def _replicate_to_local(self, ids):
         '''
