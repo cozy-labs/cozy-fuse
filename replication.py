@@ -107,7 +107,7 @@ class Replication():
 
         except (Exception):
             self.ids[id_doc] = ["", ""]
-            print 'An error occured whie replicating craetion for'
+            print 'An error occured whie replicating creation for:'
             print line
 
     def _delete_file(line, self):

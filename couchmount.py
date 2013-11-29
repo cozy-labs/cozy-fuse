@@ -142,11 +142,13 @@ class CouchFSDocument(fuse.Fuse):
 
                 # File does not exist.
                 if not exist:
+                    print 'File does not exist: %s' % path
                     return -errno.ENOENT
 
             return st
 
         except (KeyError, ResourceNotFound):
+            print 'Something went wrong getting infos for %s' % path
             return -errno.ENOENT
 
     def open(self, path, flags):
@@ -165,9 +167,11 @@ class CouchFSDocument(fuse.Fuse):
                 dirname, filename = parts
             if filename in self.get_dirs()[dirname]:
                 return 0
+            print 'Something went wrong while opening %s' % path
             return -errno.ENOENT
 
         except (KeyError, ResourceNotFound):
+            print 'Something went wrong while opening %s' % path
             return -errno.ENOENT
 
     def read(self, path, size, offset):
@@ -203,6 +207,7 @@ class CouchFSDocument(fuse.Fuse):
         except (KeyError, ResourceNotFound):
             pass
 
+        print 'Something went wrong while reading %s' % path
         return -errno.ENOENT
 
     def write(self, path, buf, offset):
@@ -220,6 +225,7 @@ class CouchFSDocument(fuse.Fuse):
         except (KeyError, ResourceNotFound):
             pass
 
+        print 'Something went wrong while writing %s' % path
         return -errno.ENOENT
 
     def release(self, path, fuse_file_info):
