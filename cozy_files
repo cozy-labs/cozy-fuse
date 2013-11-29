@@ -11,14 +11,14 @@ test -x $DAEMON || exit 0
 . /lib/lsb/init-functions
 
 d_start () {
-        log_daemon_msg "Starting system $DEAMON_NAME Daemon"
+    log_daemon_msg "Starting system $DEAMON_NAME Daemon"
 	start-stop-daemon --background --name $DEAMON_NAME --start --chuid $DAEMONUSER --exec $DAEMON -- $DEAMON_OPT
         log_end_msg $?
 }
 
 d_stop () {
-        log_daemon_msg "Stopping system $DEAMON_NAME Daemon"
-        start-stop-daemon --name $DEAMON_NAME --stop --retry 5 --quiet --name $DEAMON_NAME
+    log_daemon_msg "Stopping system $DEAMON_NAME Daemon"
+    start-stop-daemon --name $DEAMON_NAME --stop --retry 5 --quiet --name $DEAMON_NAME
 	log_end_msg $?
 }
 
