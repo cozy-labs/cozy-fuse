@@ -47,13 +47,14 @@ class Replication():
             self.passwordCozy = device['password']
 
             self.ids = {}
-            for res in self.db.view("file/all"):
-                id_binary = res.value['binary']['file']['id']
-                if id_binary in self.db:
-                    binary = self.db[id_binary]
-                    self.ids[res.id] = [id_binary, binary.rev]
-                else:
-                    self.ids[res.id] = [id_binary, ""]
+            for res in self.db.view("file/all"):                
+                if 'binary' in res.value and 'file' in res.value['binary']:
+                    id_binary = res.value['binary']['file']['id']
+                    if id_binary in self.db:
+                        binary = self.db[id_binary]
+                        self.ids[res.id] = [id_binary, binary.rev]
+                    else:
+                        self.ids[res.id] = [id_binary, ""]
 
             changes = self.db.changes(feed='continuous',
                                       heartbeat='1000',
