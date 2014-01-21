@@ -2,7 +2,7 @@
 from gi.repository import Gtk
 import sys
 from couchdb import Server
-path = '/usr/local/cozy/cozy-files/couchdb-fuse/interface'
+path = '/usr/local/cozy/cozy-files/couchdb-fuse/src/interface'
 
 database = "cozy-files"
 server = Server('http://localhost:5984/')

@@ -16,7 +16,7 @@ from couchdb import Server
 
 
 DATABASE = "cozy-files"
-PATH_COZY = "/usr/local/cozy/cozy-files/couchdb-fuse"
+PATH_COZY = "/usr/local/cozy/cozy-files/couchdb-fuse/src"
 
 def database_connection():
     try:
