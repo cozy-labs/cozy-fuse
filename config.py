@@ -4,8 +4,11 @@ from kivy.uix.progressbar import ProgressBar
 from kivy.uix.textinput import TextInput
 from kivy.properties import *
 from requests import post
-from replication import replicate_to_local, recover_progression, init_database, replicate_from_local_one_shot_without_deleted
-from replication import init_device, replicate_from_local, replicate_to_local_one_shot_without_deleted, replicate_to_local_start_seq, replicate_from_local_start_seq
+from replication import replicate_to_local, recover_progression, init_database, \
+    replicate_from_local_one_shot_without_deleted
+from replication import init_device, replicate_from_local_one_shot, \
+    replicate_to_local_one_shot_without_deleted, replicate_to_local_start_seq,\
+    replicate_from_local_start_seq
 from couchdb import Database, Server
 from kivy.clock import Clock
 from threading import Thread
@@ -121,28 +124,28 @@ class Configuration(AnchorLayout):
         self.max_prog = 0.15
         data = json.loads(req.content)
         repli = replicate_to_local_one_shot_without_deleted(url, name, data['password'], data['id'])   
-        self.max_prog = 0.30  
-        replicate_to_local_start_seq(url, name, data['password'], data['id'], repli['source_last_seq'])   
-        self.max_prog = 0.98
+        self.max_prog = 0.40    
         err = init_device(url, data['password'], data['id'])
         if err:
             self._display_error(err)
             return             
-        replicate_from_local(url, name, data['password'], data['id'])
-        pass
+        replicate_from_local_one_shot(url, name, data['password'], data['id'])
+        self.max_prog = 0.70 
+        self.max_prog = 0.72    
+        pass 
       
     def progress_bar(self, dt):
         '''
         Update progress bar
         '''
-        if self.max_prog < 0.31:
+        if self.max_prog < 0.71:
             self.progress.value = 100 * self.max_prog
         else:
             progress = recover_progression()
-            if progress > 0.98:
+            if progress == 0.0:
                 sys.exit(0)
                 return False
-            self.progress.value = 30 + 70*progress
+            self.progress.value = 70 + 30*progress
 
     def _normalize_url(self, url):
         '''
