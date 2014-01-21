@@ -234,9 +234,7 @@ try:
 
 
 except Exception, e:
+    print "Error in cozy-files : "
     print e
-    install.main()
-    download = Process(target=download_binary.main)
-    download.start()
-    start_prog()
+
 
