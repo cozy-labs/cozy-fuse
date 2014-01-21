@@ -8,6 +8,7 @@ import gtk
 import download_binary
 import json
 import install
+import replication
 
 from multiprocessing import Process
 from couchdb import Server
@@ -48,29 +49,6 @@ def _get_remote_url(name, pwd, url):
     '''
     url = url.split('/')[2]
     return "https://%s:%s@%s/cozy" % (name, pwd, url)
-
-def _replicate_to_local(url, pwd, name, id_device):
-    target =  LOCAL_DB_URL
-    source = _get_remote_url(name, pwd, url)
-    server.replicate(source, target,continuous=True,
-                     filter="%s/filter" % id_device)
-
-def _replicate_from_local(url, pwd, name, id_device):
-    target = _get_remote_url(name, pwd, url)
-    source = LOCAL_DB_URL
-    server.replicate(source, target, continuous=True,
-                     filter="%s/filter" % id_device)
-
-def _one_shot_replicate_to_local(url, pwd, name, id_device):
-    target =  LOCAL_DB_URL
-    source = _get_remote_url(name, pwd, url)
-    server.replicate(source, target, filter="%s/filter" % id_device)
-
-def _one_shot_replicate_from_local(url, pwd, name, id_device):
-    target = _get_remote_url(name, pwd, url)
-    source =  LOCAL_DB_URL
-    server.replicate(source, target, filter="%s/filter" % id_device)
-
 
 ### Widget ###
 
@@ -166,8 +144,8 @@ class Menu():
                 pwd = device['password']
                 name = device['login']
                 idDevice = device['_id']
-                _one_shot_replicate_to_local(url, pwd, name, idDevice)
-                _one_shot_replicate_from_local(url, pwd, name, idDevice)
+                replication.replicate_to_local_one_shot(url, name, pwd, idDevice)
+                replication.replicate_from_local_one_shot(url, name, pwd, idDevice)
 
 
         def startAutoSync(item):
@@ -180,8 +158,8 @@ class Menu():
                 pwd = device['password']
                 name = device['login']
                 idDevice = device['_id']
-                _replicate_to_local(url, pwd, name, idDevice)
-                _replicate_from_local(url, pwd, name, idDevice)
+                replication.replicate_to_local(url, name, pwd, idDevice)
+                replication.replicate_from_local(url, name, pwd, idDevice)
 
             # Start binaries synchronisation
             download = Process(target = download_binary.main)
@@ -245,8 +223,8 @@ try:
             pwd = device['password']
             name = device['login']
             idDevice = device['_id']
-            _replicate_to_local(url, pwd, name, idDevice)
-            _replicate_from_local(url, pwd, name, idDevice)
+            replication.replicate_to_local(url, name, pwd,idDevice)
+            replication.replicate_from_local(url, name, pwd, idDevice)
 
     # Start binaries synchronisation
     download = Process(target=download_binary.main)
