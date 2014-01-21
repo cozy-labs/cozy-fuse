@@ -22,7 +22,7 @@ attachments to be mounted on a virtual filesystem and edited directly.""",
     url = 'https://github.com/poupotte/couchdb-fuse',
     zip_safe = True,
 
-    py_modules = ['cozy_files'],
+    py_modules = ['src/cozy_files'],
 
     classifiers = [
         'Development Status :: 3 - Alpha',
