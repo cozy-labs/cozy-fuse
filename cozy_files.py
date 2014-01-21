@@ -5,8 +5,9 @@ import sys
 import requests
 import appindicator
 import gtk
-import replication
+import download_binary
 import json
+import install
 
 from multiprocessing import Process
 from couchdb import Server
@@ -183,8 +184,8 @@ class Menu():
                 _replicate_from_local(url, pwd, name, idDevice)
 
             # Start binaries synchronisation
-            repli = Process(target = replication.main)
-            repli.start()
+            download = Process(target = download_binary.main)
+            download.start()
             stop.show()
             autoSync.hide()
 
@@ -197,12 +198,13 @@ class Menu():
         def exit(item):
             # Stop fuse and replication
             fuse.terminate()
-            repli.terminate()
+            download.terminate()
             path = _recover_path()
             # Unmount cozy-files folder
             subprocess.call(["fusermount", "-u", path])
             # Remove icon
             gtk.main_quit()
+            sys.exit(1)
 
         # Add connection between menu and function
         folder.connect('activate', openFolder)
@@ -219,12 +221,12 @@ def start_prog():
     fuse.start()
 
     # Start menu
-    indicator = Menu(fuse, repli)
+    indicator = Menu(fuse, download)
     gtk.main()
 
     fuse.join()
     #icon.join()
-    repli.join()
+    download.join()
 
 
 try:
@@ -247,32 +249,16 @@ try:
             _replicate_from_local(url, pwd, name, idDevice)
 
     # Start binaries synchronisation
-    repli = Process(target=replication.main)
-    repli.start()
+    download = Process(target=download_binary.main)
+    download.start()
     start_prog()
 
 
 
 except Exception, e:
-
-    config = subprocess.call([
-        'python',
-        '%s/windows/configuration_window.py' % PATH_COZY
-    ])
-
-    if config is 0:
-        repli = Process(target = replication.main)
-        repli.start()
-        binaries_download = subprocess.call([
-            'python',
-            '%s/windows/binaries_download.py' % PATH_COZY
-        ])
-        if binaries_download is 0:
-            end = subprocess.call([
-                'python',
-                '%s/windows/end_configuration.py' % PATH_COZY
-            ])
-            start_prog()
-    else:
-        sys.exit(1)
+    print e
+    install.main()
+    download = Process(target=download_binary.main)
+    download.start()
+    start_prog()
 
