@@ -7,16 +7,15 @@ import appindicator
 import gtk
 import download_binary
 import json
-import install
 import replication
 
 from multiprocessing import Process
 from couchdb import Server
 
 
-
 DATABASE = "cozy-files"
 PATH_COZY = "/usr/local/cozy/cozy-files/couchdb-fuse/src"
+
 
 def database_connection():
     try:
@@ -41,7 +40,9 @@ server.resource.credentials = (USERNAME, PASSWORD)
 
 ### Replication utils ###
 
-LOCAL_DB_URL = 'http://%s:%s@localhost:5984/%s' % (USERNAME, PASSWORD, DATABASE)
+LOCAL_DB_URL = 'http://%s:%s@localhost:5984/%s' % (USERNAME, PASSWORD,
+                                                   DATABASE)
+
 
 def _get_remote_url(name, pwd, url):
     '''
@@ -50,16 +51,18 @@ def _get_remote_url(name, pwd, url):
     url = url.split('/')[2]
     return "https://%s:%s@%s/cozy" % (name, pwd, url)
 
+
 ### Widget ###
+
 
 class Menu():
     def __init__(self, fuse, repli):
         db = server[DATABASE]
 
         self.ind = appindicator.Indicator(
-                                  "cozy-files",
-                                  "%s/icon/icon.png" % PATH_COZY,
-                                  appindicator.CATEGORY_APPLICATION_STATUS)
+            "cozy-files",
+            "%s/icon/icon.png" % PATH_COZY,
+            appindicator.CATEGORY_APPLICATION_STATUS)
         self.ind.set_status(appindicator.STATUS_ACTIVE)
         self.ind.set_attention_icon("%s/icon/icon.png" % PATH_COZY)
 
@@ -113,10 +116,9 @@ class Menu():
                     else:
                         return device.value['folder']
 
-
         def openFolder(item):
-           path = _recover_path()
-           subprocess.Popen(["xdg-open", path])
+            path = _recover_path()
+            subprocess.Popen(["xdg-open", path])
 
         def stopSync(item):
 
@@ -127,10 +129,10 @@ class Menu():
             r = requests.get('http://localhost:5984/_active_tasks')
             replications = json.loads(r.content)
             for rep in replications:
-                idRep =  str(rep["replication_id"])
-                data = {"replication_id":"%s" % idRep, "cancel": True}
+                idRep = str(rep["replication_id"])
+                data = {"replication_id": "%s" % idRep, "cancel": True}
                 r = requests.post("http://localhost:5984/_replicate",
-                                  data=json.dumps(data) ,
+                                  data=json.dumps(data),
                                   headers={'Content-Type': 'application/json'})
             stop.hide()
             autoSync.show()
@@ -144,9 +146,10 @@ class Menu():
                 pwd = device['password']
                 name = device['login']
                 idDevice = device['_id']
-                replication.replicate_to_local_one_shot(url, name, pwd, idDevice)
-                replication.replicate_from_local_one_shot(url, name, pwd, idDevice)
-
+                replication.replicate_to_local_one_shot(
+                    url, name, pwd, idDevice)
+                replication.replicate_from_local_one_shot(
+                    url, name, pwd, idDevice)
 
         def startAutoSync(item):
 
@@ -162,7 +165,7 @@ class Menu():
                 replication.replicate_from_local(url, name, pwd, idDevice)
 
             # Start binaries synchronisation
-            download = Process(target = download_binary.main)
+            download = Process(target=download_binary.main)
             download.start()
             stop.show()
             autoSync.hide()
@@ -195,11 +198,11 @@ class Menu():
 
 def start_prog():
     # Start fuse
-    fuse = Process(target = couchmount.main)
+    fuse = Process(target=couchmount.main)
     fuse.start()
 
     # Start menu
-    indicator = Menu(fuse, download)
+    Menu(fuse, download)
     gtk.main()
 
     fuse.join()
@@ -223,7 +226,7 @@ try:
             pwd = device['password']
             name = device['login']
             idDevice = device['_id']
-            replication.replicate_to_local(url, name, pwd,idDevice)
+            replication.replicate_to_local(url, name, pwd, idDevice)
             replication.replicate_from_local(url, name, pwd, idDevice)
 
     # Start binaries synchronisation
@@ -232,9 +235,6 @@ try:
     start_prog()
 
 
-
 except Exception, e:
     print "Error in cozy-files : "
     print e
-
-

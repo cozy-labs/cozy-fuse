@@ -1,12 +1,13 @@
+import sys
+
 from kivy.app import App
 from kivy.uix.anchorlayout import AnchorLayout
 from kivy.properties import *
-import time
-import sys
+
 
 class End(AnchorLayout):
     '''
-    Manage end window
+    manage end window
     '''
 
     def end(self):

@@ -1,9 +1,11 @@
+import sys
+
 from kivy.app import App
 from kivy.uix.anchorlayout import AnchorLayout
 from kivy.properties import *
 from replication import recover_progression_binary
 from kivy.clock import Clock
-import sys
+
 
 class Binary(AnchorLayout):
     '''
@@ -14,7 +16,7 @@ class Binary(AnchorLayout):
     def init(self):
         '''
         Initialize class
-        '''       
+        '''
         Clock.schedule_interval(self.progress_bar, 1/25)
         pass
 

@@ -1,29 +1,25 @@
 from kivy.app import App
 from kivy.uix.anchorlayout import AnchorLayout
-from kivy.uix.progressbar import ProgressBar
 from kivy.uix.textinput import TextInput
 from kivy.properties import *
 from requests import post
-from replication import replicate_to_local, recover_progression, init_database, \
-    replicate_from_local_one_shot_without_deleted
+from replication import recover_progression, init_database
 from replication import init_device, replicate_from_local_one_shot, \
-    replicate_to_local_one_shot_without_deleted, replicate_to_local_start_seq,\
-    replicate_from_local_start_seq
-from couchdb import Database, Server
+    replicate_to_local_one_shot_without_deleted
 from kivy.clock import Clock
 from threading import Thread
 
 try:
     import simplejson as json
 except ImportError:
-    import json # Python 2.6
+    import json  # Python 2.6
 import sys
-import signal
 
 
 class TabTextInput(TextInput):
     '''
-    TabTextInput rewrite TextInput to switch TextInput when user press tab or enter
+    tABtExtInput rewrite TextInput to switch TextInput when user press tab or
+    enter
     '''
 
     def __init__(self, *args, **kwargs):
@@ -53,7 +49,8 @@ class TabTextInput(TextInput):
                 self.next.focus = True
                 self.next.select_all()
         else:
-            super(TabTextInput, self)._keyboard_on_key_down(window, keycode, text, modifiers)
+            super(TabTextInput, self)._keyboard_on_key_down(window, keycode,
+                                                            text, modifiers)
 
 
 class Configuration(AnchorLayout):
@@ -72,9 +69,9 @@ class Configuration(AnchorLayout):
 
     def install(self):
         '''
-        Install cozy-files: 
+        Install cozy-files:
             * Add device in user's cozy
-            * Replicate metadata from cozy to local 
+            * Replicate metadata from cozy to local
             * Update device
             * Create replication filter
             * Replicate metadata from local to cozy
@@ -83,22 +80,23 @@ class Configuration(AnchorLayout):
         pwd = self.pwd.text
         name = self.name.text
         self.progress.value = 0
-        if name is "" or pwd is "" or url is "":            
+        if name is "" or pwd is "" or url is "":
             self._display_error('Tous les champs doivent etre remplis')
             return
         url = self._normalize_url(url)
-        if not url:        
+        if not url:
             self._display_error("L'url de votre cozy n'est pas correcte")
-            return      
-        try:  
+            return
+        try:
             data = {'login': name}
-            req = post(url + '/device/', data=data, auth=('owner', pwd)) 
+            req = post(url + '/device/', data=data, auth=('owner', pwd))
             if req.status_code == 401:
-                self._display_error("""L'url et le mot de passe de votre cozy 
+                self._display_error("""L'url et le mot de passe de votre cozy
                             ne correspondent pas""")
                 return
             elif req.status_code == 400:
-                self._display_error('Ce nom est deja utilise par un autre device')
+                self._display_error(
+                    'Ce nom est deja utilise par un autre device')
                 return
         except Exception, e:
             print e
@@ -106,9 +104,9 @@ class Configuration(AnchorLayout):
             return
 
         Clock.schedule_interval(self.progress_bar, 1/25)
-        thread_configure = Thread(target=self.configure, args=(url, pwd, name, req))
+        thread_configure = Thread(target=self.configure,
+                                  args=(url, pwd, name, req))
         thread_configure.start()
-
 
     def configure(self, url, pwd, name, req):
         '''
@@ -120,20 +118,21 @@ class Configuration(AnchorLayout):
         '''
         self.max_prog = 0.1
         self._display_error("")
-        init_database() 
+        init_database()
         self.max_prog = 0.15
         data = json.loads(req.content)
-        repli = replicate_to_local_one_shot_without_deleted(url, name, data['password'], data['id'])   
-        self.max_prog = 0.40    
+        replicate_to_local_one_shot_without_deleted(
+            url, name, data['password'], data['id'])
+        self.max_prog = 0.40
         err = init_device(url, data['password'], data['id'])
         if err:
             self._display_error(err)
-            return             
+            return
         replicate_from_local_one_shot(url, name, data['password'], data['id'])
-        self.max_prog = 0.70 
-        self.max_prog = 0.72    
-        pass 
-      
+        self.max_prog = 0.70
+        self.max_prog = 0.72
+        pass
+
     def progress_bar(self, dt):
         '''
         Update progress bar
@@ -145,7 +144,7 @@ class Configuration(AnchorLayout):
             if progress == 0.0:
                 sys.exit(0)
                 return False
-            self.progress.value = 70 + 30*progress
+            self.progress.value = 70 + 30 * progress
 
     def _normalize_url(self, url):
         '''
@@ -155,7 +154,7 @@ class Configuration(AnchorLayout):
         url_parts = url.split('/')
         for part in url_parts:
             if part.find('cozycloud.cc') is not -1:
-                return 'https://%s' %part
+                return 'https://%s' % part
         return False
 
     def _display_error(self, error):

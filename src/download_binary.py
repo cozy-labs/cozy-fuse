@@ -47,7 +47,7 @@ class Replication():
             self.passwordCozy = device['password']
 
             self.ids = {}
-            for res in self.db.view("file/all"):                
+            for res in self.db.view("file/all"):
                 if 'binary' in res.value and 'file' in res.value['binary']:
                     id_binary = res.value['binary']['file']['id']
                     if id_binary in self.db:
@@ -112,9 +112,9 @@ class Replication():
                     elif not id_doc in self.ids:
                         self.ids[id_doc] = ["", ""]
 
-        except Exception, e:
+        except Exception:
             print 'An error occured while replicating creation for:'
-            print 'doc %s' %line['doc']['_id']
+            print 'doc %s' % line['doc']['_id']
             traceback.print_stack()
 
     def _delete_file(self, line):
@@ -123,14 +123,14 @@ class Replication():
         '''
         try:
             id_doc = self.ids.get(line['doc']['_id'])
-            if id_doc is not None :
+            if id_doc is not None:
                 binary = self.ids[line['doc']['_id']][0]
                 if self.db[binary]:
                     self.db.delete(self.db[binary])
                     self._replicate_to_local([binary])
-        except Exception, e:
+        except Exception:
             print 'An error occured while replicating deletion for:'
-            print 'doc %s' %line['doc']['_id']
+            print 'doc %s' % line['doc']['_id']
             traceback.print_stack()
 
     def _update_file(self, line):
@@ -146,9 +146,9 @@ class Replication():
                     if binary['rev'] != self.ids[id_doc][1]:
                         self.ids[id_doc] = [binary['id'], binary['rev']]
                         self._replicate_to_local([binary['id']])
-        except Exception, e:
+        except Exception:
             print 'An error occured while replicating update for:'
-            print 'doc %s' %line['doc']['_id']
+            print 'doc %s' % line['doc']['_id']
             traceback.print_stack()
 
     def _replicate_to_local(self, ids):
