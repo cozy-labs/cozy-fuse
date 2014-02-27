@@ -10,6 +10,14 @@ Requirements
  * [Python FUSE bindings](http://fuse.sourceforge.net/)
  * [CouchDB-Python](http://code.google.com/p/couchdb-python/) 0.5 or greater
 
+Configuration
+-----
+
+Configure your replication:
+
+    $ cd src
+    $ python install.py
+
 Usage
 -----
 
