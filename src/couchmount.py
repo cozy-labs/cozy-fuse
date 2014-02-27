@@ -17,6 +17,7 @@ from couchdb import ResourceNotFound, Server
 fuse.fuse_python_api = (0, 2)
 DATABASE = "cozy-files"
 
+
 class CouchStat(fuse.Stat):
     '''
     Default file descriptor.
@@ -32,6 +33,7 @@ class CouchStat(fuse.Stat):
         self.st_atime = 0
         self.st_mtime = 0
         self.st_ctime = 0
+
 
 class CouchFSDocument(fuse.Fuse):
     '''
@@ -67,7 +69,7 @@ class CouchFSDocument(fuse.Fuse):
         Get directories
         TODO: cache result
         """
-        dirs={}
+        dirs = {}
 
         for folder in self.db.view("folder/all"):
             folder_path = folder.value["path"] + '/' + folder.value["name"]
@@ -80,7 +82,7 @@ class CouchFSDocument(fuse.Fuse):
                     filenames = dirs.setdefault(u'/'.join(parents[1:]), set())
                     filenames.add(name)
                     parents.append(name)
-                    dirs.setdefault(u''+ folder_path, set())
+                    dirs.setdefault(u'' + folder_path, set())
 
         for file_doc in self.db.view("file/all"):
             file_path = file_doc.value["path"] + '/' + file_doc.value["name"]
@@ -99,7 +101,7 @@ class CouchFSDocument(fuse.Fuse):
         it arrives.
         """
         path = _normalize_path(path)
-        for directory in '.', '..': # why ?
+        for directory in '.', '..':  # why ?
             yield fuse.Direntry(directory)
         for name in self.get_dirs().get(path, []):
             yield fuse.Direntry(name.encode('utf-8'))
@@ -123,7 +125,6 @@ class CouchFSDocument(fuse.Fuse):
                 exist = True
                 st.st_mode = stat.S_IFDIR | 0775
                 st.st_nlink = 2
-
 
             if not exist:
                 # File exists in DB.
@@ -186,7 +187,7 @@ class CouchFSDocument(fuse.Fuse):
                 binary_id = res["binary"]["file"]["id"]
                 binary_attachment = self.db.get_attachment(binary_id, "file")
 
-                if binary_attachment == None:
+                if binary_attachment is None:
                     return ''
 
                 else:
@@ -261,12 +262,13 @@ class CouchFSDocument(fuse.Fuse):
         as an attachment to the database.
             path {string}: file path
             mode {string}: file permissions
-            dev: if the file type is S_IFCHR or S_IFBLK, dev specifies the major
-                 and minor numbers of the newly created device special file
+            dev: if the file type is S_IFCHR or S_IFBLK, dev specifies the
+                 major and minor numbers of the newly created device special
+                 file
         """
         (file_path, name) = _path_split(path)
 
-        new_binary = { "docType": "Binary" }
+        new_binary = {"docType": "Binary"}
         binary_id = self.db.create(new_binary)
         self.db.put_attachment(self.db[binary_id], '', filename="file")
 
@@ -321,7 +323,6 @@ class CouchFSDocument(fuse.Fuse):
         """
         return 0
 
-
     def mkdir(self, path, mode):
         """
         Create folder in the database.
@@ -355,8 +356,6 @@ class CouchFSDocument(fuse.Fuse):
             pathfrom {string}: old path
             pathto {string}: new path
         """
-
-
         for doc in self.db.view("file/byFullPath", key=pathfrom):
             doc = doc.value
             print doc
@@ -385,7 +384,6 @@ class CouchFSDocument(fuse.Fuse):
             self.db.save(doc)
             return 0
 
-
     def fsync(self, path, isfsyncfile):
         """
         Synchronize file contents
@@ -400,7 +398,6 @@ class CouchFSDocument(fuse.Fuse):
 
     def chown(self, path, uid, gid):
         return 0
-
 
     def statfs(self):
         """
@@ -450,13 +447,13 @@ class CouchFSDocument(fuse.Fuse):
         self.rep = self.server.replicate(source, target, doc_ids=ids)
 
 
-
 def _normalize_path(path):
     '''
     Remove trailing slash and/or empty path part.
     ex: /home//user/ becomes /home/user
     '''
     return u'/'.join([part for part in path.split(u'/') if part != u''])
+
 
 def _path_split(path):
     '''
@@ -467,6 +464,7 @@ def _path_split(path):
         folder_path = folder_path[:-(len(name)+1)]
     return (folder_path, name)
 
+
 def _get_folder(db):
     '''
     Get the folder to sync.
@@ -474,7 +472,6 @@ def _get_folder(db):
     for device in db.view("device/all"):
         return device.value['folder']
     return None
-
 
 
 def _get_credentials():
@@ -488,6 +485,7 @@ def _get_credentials():
     password = lines[1].strip()
     return (username, password)
 
+
 def _get_db(server):
     '''
     Connect on database, create it, if it doesn't exist.
@@ -497,6 +495,7 @@ def _get_db(server):
     except Exception:
         db = server.create(DATABASE)
     return db
+
 
 def _create_device_view(db):
     '''
@@ -512,7 +511,6 @@ def _create_device_view(db):
                 }
             }
         }
-
 
 
 def main():
