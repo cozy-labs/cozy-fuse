@@ -140,11 +140,12 @@ class Replication():
         try:
             id_doc = line['doc']['_id']
             doc = self.db[id_doc]
-            if doc['docType'] == 'File':
-                binary = doc['binary']['file']
-                if binary['rev'] != self.ids[id_doc][1]:
-                    self.ids[id_doc] = [binary['id'], binary['rev']]
-                    self._replicate_to_local([binary['id']])
+            if 'docType' in doc:
+                if doc['docType'] == 'File':
+                    binary = doc['binary']['file']
+                    if binary['rev'] != self.ids[id_doc][1]:
+                        self.ids[id_doc] = [binary['id'], binary['rev']]
+                        self._replicate_to_local([binary['id']])
         except Exception, e:
             print 'An error occured while replicating update for:'
             print 'doc %s' %line['doc']['_id']
