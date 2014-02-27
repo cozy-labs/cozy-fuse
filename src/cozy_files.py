@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import couchmount
 import subprocess
 import time
