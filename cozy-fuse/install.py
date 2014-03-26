@@ -1,8 +1,6 @@
-from threading import Thread
 from multiprocessing import Process
 
 import subprocess
-import os
 import sys
 import download_binary
 
@@ -15,7 +13,7 @@ def main():
         download = subprocess.call(['python', 'binary.py', '--size=720x350'])
         if download is 0:
             download_bin.terminate()
-            end = subprocess.call(['python', 'end.py', '--size=720x350'])
+            subprocess.call(['python', 'end.py', '--size=720x350'])
             sys.exit(1)
 
 

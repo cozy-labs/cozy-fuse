@@ -10,6 +10,7 @@ import gtk
 import download_binary
 import json
 import replication
+import logging
 
 from multiprocessing import Process
 from couchdb import Server
@@ -238,5 +239,4 @@ try:
 
 
 except Exception, e:
-    print "Error in cozy-files : "
-    print e
+    logging.exception("Error in cozy-files : ")
