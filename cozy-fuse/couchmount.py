@@ -9,15 +9,18 @@
 # you should have received as part of this distribution.
 
 import os
-import time
+import sys
 import errno
 import fuse
 import stat
+import subprocess
+import time
+
+import dbutils
 
 from couchdb import ResourceNotFound, Server
 
 fuse.fuse_python_api = (0, 2)
-DATABASE = "cozy-files"
 
 
 class CouchStat(fuse.Stat):
@@ -43,7 +46,7 @@ class CouchFSDocument(fuse.Fuse):
     change occurs or when users want to access to his/her file system.
     '''
 
-    def __init__(self, mountpoint, uri=None, *args, **kwargs):
+    def __init__(self, database, mountpoint, uri=None, *args, **kwargs):
         '''
         Configure file system, database and store remote Cozy informations.
         '''
@@ -56,8 +59,9 @@ class CouchFSDocument(fuse.Fuse):
 
         # Configure database
         self.server = Server('http://localhost:5984/')
-        self.server.resource.credentials = _get_credentials()
-        self.db = self.server[DATABASE]
+        #self.server.resource.credentials = _get_credentials()
+        self.database = database
+        self.db = self.server[database]
 
         # Configure Cozy
         res = self.db.view("device/all")
@@ -65,6 +69,7 @@ class CouchFSDocument(fuse.Fuse):
             self.urlCozy = device.value['url']
             self.passwordCozy = device.value['password']
             self.loginCozy = device.value['login']
+
 
     def get_dirs(self):
         """
@@ -438,10 +443,10 @@ class CouchFSDocument(fuse.Fuse):
         '''
         Replicate file modifications to remote Cozy.
         '''
-        (username, password) = _get_credentials()
+        (username, password) = ('', '')
         source = 'http://%s:%s@localhost:5984/%s' % (username,
                                                      password,
-                                                     DATABASE)
+                                                     self.database)
         url = self.urlCozy.split('/')
         target = "https://%s:%s@%s/cozy" % (self.loginCozy,
                                             self.passwordCozy,
@@ -476,63 +481,31 @@ def _get_folder(db):
     return None
 
 
-def _get_credentials():
-    '''
-    Get credentials from config file.
-    '''
-    credentials_file = open('/etc/cozy/cozy-files/couchdb.login')
-    lines = credentials_file.readlines()
-    credentials_file.close()
-    username = lines[0].strip()
-    password = lines[1].strip()
-    return (username, password)
-
-
-def _get_db(server):
-    '''
-    Connect on database, create it, if it doesn't exist.
-    '''
-    try:
-        db = server[DATABASE]
-    except Exception:
-        db = server.create(DATABASE)
-    return db
-
-
-def _create_device_view(db):
-    '''
-    Create CouchDB device design document to allow requesting on devices.
-    '''
-    if '_design/device' not in db:
-        db["_design/device"] = {
-            "views": {
-                "all": {
-                    "map": "function (doc) {\n" +
-                           "    if (doc.docType === \"Device\") {\n" +
-                           "        emit(doc.id, doc) \n    }\n}"
-                }
-            }
-        }
-
-
-def main():
-    try:
-        server = Server('http://localhost:5984/')
-        server.resource.credentials = _get_credentials()
-        db = _get_db(server)
-        _create_device_view(db)
-
-        folder = _get_folder(db)
-        if folder is None:
-            print 'no folder configured'
-        fs = CouchFSDocument(folder, 'http://localhost:5984/%s' % DATABASE)
-        fs.parse(errex=1)
-        fs.main()
-
-    except Exception:
+def _recover_path():
+    db = dbutils.get_db()
+    res = db.view("device/all")
+    if not res:
         time.sleep(5)
-        main()
+        return _recover_path()
+    else:
+        try:
+            for device in res:
+                if not device.value["folder"]:
+                    time.sleep(5)
+                    return _recover_path()
+                else:
+                    return device.value['folder']
+        except ResourceNotFound:
+            print 'No connected device found'
 
 
-if __name__ == '__main__':
-    main()
+def unmount(path):
+    if path is None:
+        path = _recover_path()
+    subprocess.call(["fusermount", "-u", path])
+    print 'Folder %s unmounted' % path
+
+
+def mount(name, path):
+    fs = CouchFSDocument(name, path, 'http://localhost:5984/%s' % name)
+    fs.main()
