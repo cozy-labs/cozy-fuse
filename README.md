@@ -18,6 +18,10 @@ Configure your replication:
     $ cd src
     $ python install.py
 
+On ubuntu you have to add read rights on `/etc/fuse.conf`
+
+    chmod a+r /etc/fuse.conf
+
 Usage
 -----
 
