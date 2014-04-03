@@ -1,43 +1,60 @@
-CouchDB-FUSE
-============
+# [Cozy](http://cozy.io) Fuse Linux
 
-A FUSE interface to CouchDB. 
+This programs allows you to mount file from your Cozy Files application in your
+usual file system.
 
 
-Requirements
-------------
+## Requirements
 
- * [Python FUSE bindings](http://fuse.sourceforge.net/)
- * [CouchDB-Python](http://code.google.com/p/couchdb-python/) 0.5 or greater
+To run properly Cozy Fuse requires that you setup:
 
-Configuration
------
+* a CouchDB instance on your system and that you 
+* FUSE
+
+On Debian like system you can simply add them via
+
+    apt-get install couchdb fuse
+
+## Installation
+
+In a console run:
+
+   pip install git+git@github.com:mycozycloud/cozy-fuse-linux.git
+
+
 
 Configure your replication:
 
-    $ cd src
-    $ python install.py
+    ... Work in progress ...
 
-On ubuntu you have to add read rights on `/etc/fuse.conf`
+On Ubuntu you must add read rights on `/etc/fuse.conf`
 
     chmod a+r /etc/fuse.conf
 
 
-Troubleshootings
------
+## Troubleshootings
 
 *File copy fails.*: It can be due to a bad initialization of your remote Cozy
 Proxy. Restart your proxy, log in and retry.
 
-Usage
------
+## What is Cozy?
 
-    $ mkdir mnt
-    $ python couchmount.py http://localhost:5984/database_name mnt/
-    $ ls mnt/
-    $ touch mnt/foo
-    $ ls mnt/
-    foo
-    $ 
+![Cozy
+Logo](https://raw.github.com/mycozycloud/cozy-setup/gh-pages/assets/images/happycloud.png)
 
-Happy Couching!
+[Cozy](http://cozy.io) is a platform that brings all your web services in the
+same private space.  With it, your web apps and your devices can share data
+easily, providing you
+with a new experience. You can install Cozy on your own hardware where no one
+profiles you.
+
+## Community
+
+You can reach the Cozy Community by:
+
+* Chatting with us on IRC #cozycloud on irc.freenode.net
+* Posting on our
+  [Forum](https://groups.google.com/forum/?fromgroups#!forum/cozy-cloud)
+  * Posting issues on the [Github repos](https://github.com/mycozycloud/)
+  * Mentioning us on [Twitter](http://twitter.com/mycozycloud)
+
