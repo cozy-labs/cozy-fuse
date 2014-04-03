@@ -89,7 +89,7 @@ class Configuration(AnchorLayout):
             return
         try:
             data = {'login': name}
-            req = post(url + '/device/', data=data, auth=('owner', pwd))
+            response = post(url + '/device/', data=data, auth=('owner', pwd))
             if req.status_code == 401:
                 self._display_error("""L'url et le mot de passe de votre cozy
                             ne correspondent pas""")
@@ -105,30 +105,34 @@ class Configuration(AnchorLayout):
 
         Clock.schedule_interval(self.progress_bar, 1/25)
         thread_configure = Thread(target=self.configure,
-                                  args=(url, pwd, name, req))
+                                  args=(url, pwd, name, response))
         thread_configure.start()
 
-    def configure(self, url, pwd, name, req):
+    def configure(self, url, pwd, name, response):
         '''
         Configure cozy-files
             url  {string}: cozy url
             pwd  {string}: cozy password
             name {string}: device name
-            req  {object}: response of request to add device in cozy
+            response  {object}: response of responseuest to add device in cozy
         '''
+
         self.max_prog = 0.1
         self._display_error("")
         init_database()
+
         self.max_prog = 0.15
-        data = json.loads(req.content)
+        data = json.loads(response.content)
         replicate_to_local_one_shot_without_deleted(
             url, name, data['password'], data['id'])
+
         self.max_prog = 0.40
         err = init_device(url, data['password'], data['id'])
         if err:
             self._display_error(err)
             return
         replicate_from_local_one_shot(url, name, data['password'], data['id'])
+
         self.max_prog = 0.70
         self.max_prog = 0.72
         pass
