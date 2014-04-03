@@ -1,9 +1,7 @@
-import sys
 import traceback
 
 from couchdb import Server
 
-DATABASE = "cozy-files"
 CREDENTIALS_FILE_PATH = '/etc/cozy/cozy-files/couchdb.login'
 
 
@@ -12,9 +10,9 @@ class Replication():
     Class that allows to run replications on local database
     '''
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, db_name, *args, **kwargs):
         self.set_credentials()
-        self.set_db_server()
+        self.set_db_server(db_name)
         self.replicate_file_changes()
 
     def set_credentials(self):
@@ -28,13 +26,14 @@ class Replication():
         self.username = lines[0].strip()
         self.password = lines[1].strip()
 
-    def set_db_server(self):
+    def set_db_server(self, db_name):
         '''
         Configure CouchDB connectors (location + credentials).
         '''
         self.server = Server('http://localhost:5984/')
         self.server.resource.credentials = (self.username, self.password)
-        self.db = self.server[DATABASE]
+        self.db = self.server[db_name]
+        self.db_name = db_name
 
     def replicate_file_changes(self):
         '''
@@ -158,23 +157,8 @@ class Replication():
         url = self.urlCozy.split('/')
         target = 'http://%s:%s@localhost:5984/%s' % (self.username,
                                                      self.password,
-                                                     DATABASE)
+                                                     self.db_name)
         source = "https://%s:%s@%s/cozy" % (self.loginCozy,
                                             self.passwordCozy,
                                             url[2])
         self.rep = self.server.replicate(source, target, doc_ids=ids)
-
-
-def main():
-    '''
-    Start replication when file is executed.
-    '''
-    try:
-        Replication()
-    except Exception:
-        print('Something wrong occured while creating replicator')
-        traceback.print_exc(file=sys.stdout)
-
-
-if __name__ == '__main__':
-    main()
