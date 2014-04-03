@@ -14,6 +14,7 @@ import logging
 
 from multiprocessing import Process
 from couchdb import Server
+from couchdb.http import ResourceNotFound
 
 
 DATABASE = "cozy-files"
@@ -112,12 +113,15 @@ class Menu():
                 time.sleep(5)
                 return _recover_path()
             else:
-                for device in res:
-                    if not device.value["folder"]:
-                        time.sleep(5)
-                        return _recover_path()
-                    else:
-                        return device.value['folder']
+                try:
+                    for device in res:
+                        if not device.value["folder"]:
+                            time.sleep(5)
+                            return _recover_path()
+                        else:
+                            return device.value['folder']
+                except ResourceNotFound:
+                    print 'No connected device found'
 
         def openFolder(item):
             path = _recover_path()
@@ -201,16 +205,18 @@ class Menu():
 
 def start_prog():
     # Start fuse
+    print 'Start Cozy FUSE'
     fuse = Process(target=couchmount.main)
     fuse.start()
 
     # Start menu
-    Menu(fuse, download)
-    gtk.main()
+    print 'Start Cozy Fuse Menu'
+    #Menu(fuse, download)
+    #gtk.main()
 
-    fuse.join()
-    #icon.join()
-    download.join()
+    #fuse.join()
+    ##icon.join()
+    #download.join()
 
 
 try:
@@ -223,20 +229,31 @@ try:
 
     if len(replications) is 0:
         res = db.view("device/all")
-        for device in res:
-            device = device.value
-            url = device['url']
-            pwd = device['password']
-            name = device['login']
-            idDevice = device['_id']
-            replication.replicate_to_local(url, name, pwd, idDevice)
-            replication.replicate_from_local(url, name, pwd, idDevice)
+
+        try:
+            for device in res:
+                device = device.value
+                url = device['url']
+                pwd = device['password']
+                name = device['login']
+                print "Start replication for device located at %s" % url
+
+                idDevice = device['_id']
+                replication.replicate_to_local(url, name, pwd, idDevice)
+                replication.replicate_from_local(url, name, pwd, idDevice)
+
+        except ResourceNotFound:
+            print 'No connected device found'
+            print 'Check that a device is registered in your local CouchDB' \
+                  'instance'
+            sys.exit(1)
 
     # Start binaries synchronisation
     download = Process(target=download_binary.main)
     download.start()
+
     start_prog()
 
 
 except Exception, e:
-    logging.exception("Error in cozy-files : ")
+    logging.exception("An error happened while starting cozy-fuse:")

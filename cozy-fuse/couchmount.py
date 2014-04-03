@@ -274,6 +274,8 @@ class CouchFSDocument(fuse.Fuse):
                  file
         """
         (file_path, name) = _path_split(path)
+        print file_path
+        print name
 
         new_binary = {"docType": "Binary"}
         binary_id = self.db.create(new_binary)

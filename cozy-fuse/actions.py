@@ -1,6 +1,6 @@
+
 import argparse
 import getpass
-import sys
 import requests
 import json
 
@@ -9,7 +9,6 @@ import replication
 import local_config
 import remote
 
-from argparse import RawTextHelpFormatter
 from couchdb.http import ResourceNotFound
 
 from download_binary import Replication
@@ -18,6 +17,9 @@ from couchdb import Server
 
 
 def register_device_remotely(name):
+    '''
+    Register device to target Cozy
+    '''
     (url, path) = local_config.get_config(name)
     password = getpass.getpass('Type your password:\n')
     (device_id, device_password) = remote.register_device(name, url,
@@ -27,14 +29,21 @@ def register_device_remotely(name):
 
 
 def remove_device_remotely(name):
+    '''
+    Delete given device form target Cozy.
+    '''
     (url, path) = local_config.get_config(name)
     (device_id, password) = local_config.get_device_config(name)
-    password = getpass.getpass('Type your password:\n')
+    password = getpass.getpass('Type your Cozy password:\n')
     remote.remove_device(url, device_id, password)
-    print 'Device removed'
+    print '[Device] %s removed' % name
 
 
-def run_replications(name):
+def init_replication(name):
+    '''
+    Run initial replications then start continutous replication.
+    Write device information in database.
+    '''
     (url, path) = local_config.get_config(name)
     (device_id, password) = local_config.get_device_config(name)
 
@@ -49,11 +58,25 @@ def run_replications(name):
         name, url, name, password, device_id)
     print '[Replication] Add missing data to remote database.'
 
+    replication.replicate_to_local(name, url, name, password, device_id)
+    print '[Replication] Start remote to local replication'
+
+    replication.replicate_from_local(name, url, name, password, device_id)
+    print '[Replication] Start local to remote replication'
+
+
+def run_replication(name):
+    '''
+    Run binary replicator daemon.
+    '''
     Replication(name)
-    print '[Replication] Binaries synchronized.'
 
 
 def kill_running_replications():
+    '''
+    Kill running replications in CouchDB (based on active tasks info).
+    Useful when a replication is in Zombie mode.
+    '''
     server = Server('http://localhost:5984/')
 
     for task in server.tasks():
@@ -71,6 +94,14 @@ def kill_running_replications():
 
 
 def reset():
+    '''
+    Reset local and remote configuration by:
+
+    * Unmounting each folder device.
+    * Removing each device on corresponding remote cozies.
+    * Removing configuration file.
+    * Destroy corresponding DBs.
+    '''
     # Remove devices remotely
     config = local_config.get_full_config()
     try:
@@ -93,8 +124,10 @@ def reset():
     print 'Configuraton file deleted'
 
 
-
 def mount_folder(name):
+    '''
+    Mount folder linked to given device.
+    '''
     try:
         (url, path) = local_config.get_config(name)
         couchmount.mount(name, path)
@@ -103,12 +136,18 @@ def mount_folder(name):
 
 
 def unmount_folder(name, path=None):
+    '''
+    Unmount folder linked to given device.
+    '''
     if path is None:
         (url, path) = local_config.get_config(name)
     couchmount.unmount(path)
 
 
 def display_config():
+    '''
+    Display config file in a human readable way.
+    '''
     config = local_config.get_full_config()
     for device in config.keys():
         print 'Configuration for device %s:' % device
@@ -118,22 +157,36 @@ def display_config():
 
 
 def unregister_device(name):
+    '''
+    Remove device from local configuration, destroy corresponding database
+    and unregister it from remote Cozy.
+    '''
+    print '[Device] %s removed' % name
     (url, path) = local_config.get_config(name)
     (device_id, device_password) = local_config.get_device_config(name)
     local_config.remove(name)
-    remove_db()
+    remove_db(name)
     password = getpass.getpass('Type your password:\n')
     remote.remove_device(url, device_id, password)
 
 
 def configure_new_device(name, url, path):
+    '''
+    * Create configuration for given device.
+    * Create database and init CouchDB views.
+    * Register device on remote Cozy defined by *url*.
+    * Init replications.
+    '''
     local_config.add_config(name, url, path)
     init_db(name)
     register_device_remotely(name)
-    mount_folder(name)
+    init_replication(name)
 
 
 def start_auto_sync(name):
+    '''
+
+    '''
     (url, path) = local_config.get_config(name)
     (device_id, device_password) = local_config.get_device_config(name)
 
@@ -143,62 +196,3 @@ def start_auto_sync(name):
         name, url, name, device_password, device_id)
 
 
-def main(argv=sys.argv):
-    parser = argparse.ArgumentParser(
-        description='Manage your local configuration for Cozy syncing and ' \
-                    'FUSE mounting',
-        formatter_class=RawTextHelpFormatter)
-    parser.add_argument('action', help='Action to perform.')
-    parser.add_argument('-p', '--path')
-    parser.add_argument('-u', '--url')
-    parser.add_argument('-n', '--name')
-
-    args = parser.parse_args()
-
-    if args.action is None:
-        parser.print_help()
-        print('\nYou must specify an action argument\n')
-        sys.exit(2)
-
-    elif args.action == 'reset':
-        reset()
-
-    elif args.action == 'new_device':
-        configure_new_device(args.name, args.url, args.path)
-
-    elif args.action == 'init_db':
-        init_db(args.name)
-
-    elif args.action == 'add_device':
-        local_config.add_config(args.name, args.url, args.path)
-
-    elif args.action == 'register_device':
-        register_device_remotely(args.name)
-
-    elif args.action == 'run_replications':
-        run_replications(args.name)
-
-    elif args.action == 'start_auto_sync':
-        start_auto_sync(args.name)
-
-    elif args.action == 'mount_folder':
-        mount_folder(args.name)
-
-    elif args.action == 'unmount_folder':
-        unmount_folder(args.name, args.path)
-
-    elif args.action == 'display_config':
-        display_config()
-
-    elif args.action == 'unregister_device':
-        unregister_device(args.name)
-
-    elif args.action == 'unregister_device_remotely':
-        remove_device_remotely()
-
-    elif args.action == 'kill_running_replications':
-        kill_running_replications()
-
-
-if __name__ == "__main__":
-    main()
