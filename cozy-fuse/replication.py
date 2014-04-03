@@ -11,108 +11,42 @@ import os
 SERVER = Server('http://localhost:5984/')
 
 
-def replicate_to_local(database, url, device, pwdDevice, idDevice):
+def replicate(database, url, device, device_password, device_id,
+              to_local=False, continuous=True, deleted=True, seq=None):
     '''
-    Replicate metadata from cozy to local.
+    Run a replication from a CouchDB database to a remote Cozy instance.
+
+    Args:
+
+    * *to_local*: if True, data go from remote Cozy to local Couch.
+    * *continuous*: if False, it's a single shot replication.
+    * *deleted*: if false deleted documents are not replicated.
+    * *seq*: sequence number from where to start the replication.
     '''
+
     (username, password) = _get_credentials()
-    target = 'http://%s:%s@localhost:5984/%s' % (username, password, database)
     url = url.split('/')
-    source = "https://%s:%s@%s/cozy" % (device, pwdDevice, url[2])
-    SERVER.replicate(source, target,
-                     continuous=True, filter="%s/filter" % idDevice)
+    local = 'http://%s:%s@localhost:5984/%s' % (username, password, database)
+    remote = "https://%s:%s@%s/cozy" % (device, device_password, url[2])
 
+    if to_local:
+        target = local
+        source = remote
+    else:
+        target = remote
+        source = local
 
-def replicate_from_local(database, url, device, pwdDevice, idDevice):
-    '''
-    Replicate metadata from local to cozy.
-    '''
-    (username, password) = _get_credentials()
-    source = 'http://%s:%s@localhost:5984/%s' % (username, password, database)
-    url = url.split('/')
-    target = "https://%s:%s@%s/cozy" % (device, pwdDevice, url[2])
-    SERVER.replicate(source, target,
-                     continuous=True, filter="%s/filter" % idDevice)
+    if deleted:
+        filter_name = "%s/filter" % device_id
+    else:
+        filter_name = "%s/filterDocType" % device_id
 
-
-def replicate_to_local_start_seq(database, url,
-                                 device, pwdDevice, idDevice, seq):
-    '''
-    Replicate metadata from cozy to local
-    '''
-    (username, password) = _get_credentials()
-    target = 'http://%s:%s@localhost:5984/%s' % (username, password, database)
-    url = url.split('/')
-    source = "https://%s:%s@%s/cozy" % (device, pwdDevice, url[2])
-    SERVER.replicate(source, target,
-                     continuous=True, filter="%s/filter" % idDevice,
-                     since_seq=seq)
-
-
-def replicate_from_local_start_seq(database, url,
-                                   device, pwdDevice, idDevice, seq):
-    '''
-    Replicate metadata from local to cozy
-    '''
-    (username, password) = _get_credentials()
-    source = 'http://%s:%s@localhost:5984/%s' % (username, password, database)
-    url = url.split('/')
-    target = "https://%s:%s@%s/cozy" % (device, pwdDevice, url[2])
-    SERVER.replicate(source, target,
-                     continuous=True, filter="%s/filter" % idDevice,
-                     since_seq=seq)
-
-
-def replicate_to_local_one_shot(database, url, device, pwdDevice, idDevice):
-    '''
-    Replicate metadata from cozy to local with a one-shot replication
-    '''
-    (username, password) = _get_credentials()
-    #target = 'http://%s:%s@localhost:5984/%s' % (username, password, database)
-    target = 'http://localhost:5984/%s' % database
-
-    url = url.split('/')
-    source = "https://%s:%s@%s/cozy" % (device, pwdDevice, url[2])
-    SERVER.replicate(source, target, filter="%s/filter" % idDevice)
-
-
-def replicate_from_local_one_shot(database, url, device, pwdDevice, idDevice):
-    '''
-    Replicate metadata from local to cozy with a one-shot replication
-    '''
-    (username, password) = _get_credentials()
-    source = 'http://%s:%s@localhost:5984/%s' % (username, password, database)
-    url = url.split('/')
-    target = "https://%s:%s@%s/cozy" % (device, pwdDevice, url[2])
-    SERVER.replicate(source, target, filter="%s/filter" % idDevice)
-
-
-def replicate_to_local_one_shot_without_deleted(database, url, device,
-                                                pwdDevice, idDevice):
-    '''
-    Replicate metadata from cozy to local with a one-shot replication
-    '''
-    (username, password) = _get_credentials()
-    #target = 'http://%s:%s@localhost:5984/%s' % (username, password, database)
-    target = 'http://localhost:5984/%s' % database
-    url = url.split('/')
-    source = "https://%s:%s@%s/cozy" % (device, pwdDevice, url[2])
-    filter_name = "%s/filterDocType" % idDevice
-
-    SERVER.replicate(source, target, filter=filter_name)
-
-
-def replicate_from_local_one_shot_without_deleted(database, url, device,
-                                                  pwdDevice, idDevice):
-    '''
-    Replicate metadata from local to cozy with a one-shot replication
-    '''
-    (username, password) = _get_credentials()
-    source = 'http://%s:%s@localhost:5984/%s' % (username, password, database)
-    url = url.split('/')
-    target = "https://%s:%s@%s/cozy" % (device, pwdDevice, url[2])
-    return SERVER.replicate(source, target,
-                            filter="%s/filterDocType" % idDevice)
+    if seq is None:
+        SERVER.replicate(source, target, continuous=continuous,
+                         filter=filter_name)
+    else:
+        SERVER.replicate(source, target, continuous=continuous,
+                         filter=filter_name, since_seq=seq)
 
 
 def recover_progression():
@@ -120,8 +54,8 @@ def recover_progression():
     Recover progression of metadata replication
     '''
     url = 'http://localhost:5984/_active_tasks'
-    r = requests.get(url)
-    replications = json.loads(r.content)
+    response = requests.get(url)
+    replications = json.loads(response.content)
     prog = 0
     for rep in replications:
         if 'replication_id' in rep:

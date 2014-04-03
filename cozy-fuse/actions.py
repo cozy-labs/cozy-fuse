@@ -47,21 +47,22 @@ def init_replication(name):
     (url, path) = local_config.get_config(name)
     (device_id, password) = local_config.get_device_config(name)
 
-    replication.replicate_to_local_one_shot_without_deleted(
-       name, url, name, password, device_id)
+    replication.replicate(
+       name, url, name, password, device_id, to_local=True, continuous=False,
+       deleted=False)
     print '[Replication] One shot replication is done'
 
     replication.init_device(name, url, password, device_id)
     print '[Replication] Device initialized'
 
-    replication.replicate_from_local_one_shot(
-        name, url, name, password, device_id)
+    replication.replicate(
+        name, url, name, password, device_id, to_local=False, continuous=False)
     print '[Replication] Add missing data to remote database.'
 
-    replication.replicate_to_local(name, url, name, password, device_id)
+    replication.replicate(name, url, name, password, device_id, to_local=True)
     print '[Replication] Start remote to local replication'
 
-    replication.replicate_from_local(name, url, name, password, device_id)
+    replication.replicate(name, url, name, password, device_id)
     print '[Replication] Start local to remote replication'
 
 
