@@ -231,7 +231,7 @@ def init_database(database):
                 "all": {
                     "map": """function (doc) {
                                   if (doc.docType === \"Binary\") {
-                                      emit(doc.id, doc)
+                                      emit(doc._id, doc)
                                   }
                                }"""
                 }
