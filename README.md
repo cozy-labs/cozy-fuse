@@ -8,7 +8,7 @@ usual file system.
 
 To run properly Cozy Fuse requires that you setup:
 
-* a CouchDB instance on your system and that you 
+* a CouchDB instance running locally on your system.
 * FUSE
 
 On Debian like system you can simply add them via
@@ -20,7 +20,6 @@ On Debian like system you can simply add them via
 In a console run:
 
    pip install git+git@github.com:mycozycloud/cozy-fuse-linux.git
-
 
 
 Configure your replication:
