@@ -22,6 +22,13 @@ On ubuntu you have to add read rights on `/etc/fuse.conf`
 
     chmod a+r /etc/fuse.conf
 
+
+Troubleshootings
+-----
+
+*File copy fails.*: It can be due to a bad initialization of your remote Cozy
+Proxy. Restart your proxy, log in and retry.
+
 Usage
 -----
 
