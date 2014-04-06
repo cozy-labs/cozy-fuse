@@ -21,6 +21,7 @@ def register_device(name, url, path, password):
         print 'Registering device failed for %s (wrong password).' % name
         return (None, None)
     else:
+        print response.content
         data = json.loads(response.content)
         device_id = str(data["id"])
         device_password = str(data["password"])

@@ -1,5 +1,3 @@
-
-import argparse
 import getpass
 import requests
 import json
@@ -21,6 +19,8 @@ def register_device_remotely(name):
     Register device to target Cozy
     '''
     (url, path) = local_config.get_config(name)
+    if url[-1:] == '/':
+         url = url[:-(len(name)+1)]
     password = getpass.getpass('Type your password:\n')
     (device_id, device_password) = remote.register_device(name, url,
                                                           path, password)
@@ -46,23 +46,29 @@ def init_replication(name):
     '''
     (url, path) = local_config.get_config(name)
     (device_id, password) = local_config.get_device_config(name)
+    (db_login, db_password) = local_config.get_db_credentials(name)
+
 
     replication.replicate(
-       name, url, name, password, device_id, to_local=True, continuous=False,
-       deleted=False)
+       name, url, name, password, device_id, db_login, db_password,
+       to_local=True, continuous=False, deleted=False)
     print '[Replication] One shot replication is done'
 
-    replication.init_device(name, url, password, device_id)
+    replication.init_device(name, url, password, device_id,
+                            db_login, db_password)
     print '[Replication] Device initialized'
 
     replication.replicate(
-        name, url, name, password, device_id, to_local=False, continuous=False)
+        name, url, name, password, device_id, db_login, db_password,
+        to_local=False, continuous=False)
     print '[Replication] Add missing data to remote database.'
 
-    replication.replicate(name, url, name, password, device_id, to_local=True)
+    replication.replicate(name, url, name, password, device_id,
+                          db_login, db_password, to_local=True)
     print '[Replication] Start remote to local replication'
 
-    replication.replicate(name, url, name, password, device_id)
+    replication.replicate(name, url, name, password, device_id,
+                          db_login, db_password)
     print '[Replication] Start local to remote replication'
 
 
@@ -107,22 +113,23 @@ def reset():
     config = local_config.get_full_config()
     try:
         for name in config.keys():
+            print '[reset] Clearing %s' % name
             device = config[name]
             path = device['path']
             couchmount.unmount(path)
             remove_device_remotely(name)
             print '[reset] Device %s unregistered' % name
 
-        # Remove database
-        remove_db(name)
-        print 'Local database deleted'
+            # Remove database
+            remove_db(name)
+            print '[reset] Local database deleted'
 
     except ResourceNotFound:
-        print 'No device found locally'
+        print '[reset] No device found locally'
 
     # Remove local config file
     local_config.clear()
-    print 'Configuraton file deleted'
+    print '[reset] Configuraton file deleted'
 
 
 def mount_folder(name):
@@ -178,8 +185,8 @@ def configure_new_device(name, url, path):
     * Register device on remote Cozy defined by *url*.
     * Init replications.
     '''
-    local_config.add_config(name, url, path)
-    init_db(name)
+    (db_login, db_password) = init_db(name)
+    local_config.add_config(name, url, path, db_login, db_password)
     register_device_remotely(name)
     init_replication(name)
 

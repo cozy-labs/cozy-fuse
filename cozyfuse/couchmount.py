@@ -9,7 +9,6 @@
 # you should have received as part of this distribution.
 
 import os
-import sys
 import errno
 import fuse
 import stat
@@ -18,7 +17,7 @@ import time
 
 import dbutils
 
-from couchdb import ResourceNotFound, Server
+from couchdb import ResourceNotFound
 
 fuse.fuse_python_api = (0, 2)
 
@@ -58,17 +57,14 @@ class CouchFSDocument(fuse.Fuse):
         self.currentFile = ""
 
         # Configure database
-        self.server = Server('http://localhost:5984/')
-        #self.server.resource.credentials = _get_credentials()
         self.database = database
-        self.db = self.server[database]
+        (self.db, self.server) = dbutils.get_db_and_server(database)
 
         # Configure Cozy
-        res = self.db.view("device/all")
-        for device in res:
-            self.urlCozy = device.value['url']
-            self.passwordCozy = device.value['password']
-            self.loginCozy = device.value['login']
+        device = dbutils.get_device(database)
+        self.urlCozy = device.value['url']
+        self.passwordCozy = device.value['password']
+        self.loginCozy = device.value['login']
 
 
     def get_dirs(self):

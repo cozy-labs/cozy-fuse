@@ -1,4 +1,11 @@
+import json
+import string
+import random
+import requests
+
 import replication
+import local_config
+
 
 from couchdb import Server
 
@@ -9,26 +16,43 @@ def get_db(database):
     '''
     try:
         server = Server('http://localhost:5984/')
+        server.resource.credentials = local_config.get_db_credentials(database)
         db = server[database]
     except Exception:
-        print('Cannot connect to the database')
+        print('[DB] Cannot connect to the database')
         return None
     return db
 
+
+def get_db_and_server(database):
+    '''
+    Get or create given database from/in CouchDB.
+    '''
+    try:
+        server = Server('http://localhost:5984/')
+        server.resource.credentials = local_config.get_db_credentials(database)
+        db = server[database]
+        return (db, server)
+    except Exception:
+        print('[DB] Cannot connect to the database')
+        return (None, None)
 
 def init_db(database):
     '''
     Create all required views to make Cozy FUSE working properly.
     '''
     replication.init_database(database)
-    print 'Local database initialized'
+    password = get_random_key()
+    create_db_user(database, database, password)
+    print '[DB] Local database initialized'
+    return (database, password)
 
 
 def remove_db(database):
     '''
     Destroy given database.
     '''
-    server = Server('http://localhost:5984/')
+    (db, server) = get_db_and_server(database)
     server.delete(database)
 
 
@@ -58,3 +82,48 @@ def get_device(name):
     except IndexError:
         device = None
     return device
+
+
+def get_random_key():
+    '''
+    Generate a random key of 20 chars. The first character is not a number
+    because CouchDB does not link string that starts with a digit.
+    '''
+    chars = string.ascii_lowercase + string.digits
+    random_val = ''.join(random.choice(chars) for x in range(19))
+    return random.choice(string.ascii_lowercase) + random_val
+
+
+def create_db_user(database, login, password, protocol="http"):
+    '''
+    Create a user for given *database*. User credentials are *login* and
+    *password*.
+    '''
+    headers = {'content-type': 'application/json'}
+    data = {
+        "_id": "org.couchdb.user:%s" % login,
+        "name": login,
+        "type": "user",
+        "roles": [],
+        "password": password
+    }
+    requests.post('%s://localhost:5984/_users' % (protocol),
+                  data=json.dumps(data),
+                  headers=headers,
+                  verify=False)
+
+    headers = {'content-type': 'application/json'}
+    data = {
+       "admins": {
+           "names": [login],
+           "roles": []
+        },
+       "members": {
+           "names": [login],
+           "roles": []
+        },
+    }
+    requests.put('%s://localhost:5984/%s/_security' % (protocol, database),
+                 data=json.dumps(data),
+                 headers=headers,
+                 verify=False)

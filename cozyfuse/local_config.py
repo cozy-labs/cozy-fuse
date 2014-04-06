@@ -7,7 +7,7 @@ from yaml import Loader
 CONFIG_PATH = os.path.join(os.path.expanduser('~'), '.cozyfuse')
 
 
-def add_config(name, url, path):
+def add_config(name, url, path, db_login, db_password):
     '''
     Add to the config file (~/.cozyfuse) device named *name* with *url* and
     *path* as parameters.
@@ -31,7 +31,9 @@ def add_config(name, url, path):
 
         config[name] = {
             'url': url,
-            'path': path
+            'path': path,
+            'dblogin': db_login,
+            'dbpassword': db_password,
         }
 
         output_file = file(CONFIG_PATH, 'w')
@@ -72,11 +74,33 @@ def get_device_config(name):
 
     for key in data.keys():
         if key == name:
-            device_id = data[key]['deviceid']
-            device_password = data[key]['devicepassword']
+            try:
+                device_id = data[key]['deviceid']
+            except KeyError:
+                device_id = None
+            try:
+                device_password = data[key]['devicepassword']
+            except KeyError:
+                device_password = None
 
     return (device_id, device_password)
 
+
+def get_db_credentials(name):
+    try:
+        stream = file(CONFIG_PATH, 'r')
+    except IOError:
+        print 'Config file (~/.cozyfuse) does not exist.'
+        return None
+
+    data = load(stream, Loader=Loader)
+
+    for key in data.keys():
+        if key == name:
+            db_login = data[key]['dblogin']
+            db_password = data[key]['dbpassword']
+
+    return (db_login, db_password)
 
 
 def get_full_config():

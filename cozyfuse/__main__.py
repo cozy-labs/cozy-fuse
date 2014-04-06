@@ -8,15 +8,27 @@ import actions
 from argparse import RawTextHelpFormatter
 
 
+DOC = '''
+manage your local configuration for Cozy syncing and FUSE mounting. Available
+actions are:
+
+   new_device
+   run_replication
+   remove_device
+   start_continuous_replication
+'''
+
 def main(argv=sys.argv):
     parser = argparse.ArgumentParser(
-        description='Manage your local configuration for Cozy syncing and ' \
-                    'FUSE mounting',
-        formatter_class=RawTextHelpFormatter)
-    parser.add_argument('action', help='Action to perform.')
-    parser.add_argument('-p', '--path')
-    parser.add_argument('-u', '--url')
-    parser.add_argument('-n', '--name')
+        description=DOC, formatter_class=RawTextHelpFormatter)
+    parser.add_argument('action',
+                        help='Action to perform.')
+    parser.add_argument('-p', '--path',
+                        help='Path where file will be mounted')
+    parser.add_argument('-u', '--url',
+                        help='URL of remote Cozy to sync')
+    parser.add_argument('-n', '--name',
+                        help='Name of the device on which action occurs')
 
     args = parser.parse_args()
 

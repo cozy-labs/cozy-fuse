@@ -1,3 +1,5 @@
+import dbutils
+
 from couchdb import Server
 from couchdb.http import PreconditionFailed, ResourceConflict
 
@@ -12,6 +14,7 @@ SERVER = Server('http://localhost:5984/')
 
 
 def replicate(database, url, device, device_password, device_id,
+              db_login, db_password,
               to_local=False, continuous=True, deleted=True, seq=None):
     '''
     Run a replication from a CouchDB database to a remote Cozy instance.
@@ -24,9 +27,8 @@ def replicate(database, url, device, device_password, device_id,
     * *seq*: sequence number from where to start the replication.
     '''
 
-    (username, password) = _get_credentials()
     url = url.split('/')
-    local = 'http://%s:%s@localhost:5984/%s' % (username, password, database)
+    local = 'http://%s:%s@localhost:5984/%s' % (db_login, db_password, database)
     remote = "https://%s:%s@%s/cozy" % (device, device_password, url[2])
 
     if to_local:
@@ -183,71 +185,56 @@ def init_device(database, url, pwdDevice, idDevice):
         pwdDevice {string}: device password
         idDevice {Number}: device id
     '''
-    db = SERVER[database]
+    db = dbutils.get_db(database)
     res = db.view("device/all")
 
-    if not res:
-        init_device(url, pwdDevice, idDevice)
-    else:
+    for device in res:
+        device = device.value
 
-        for device in res:
-            device = device.value
-            # Update device
-            folder = "%s/cozy-files" % os.environ['HOME']
-            device['password'] = pwdDevice
-            device['change'] = 0
-            device['url'] = url
-            device['folder'] = folder
-            db.save(device)
-            # Generate filter
-            filter = """function(doc, req) {
-                    if(doc._deleted) {
-                        return true;
-                    }
-                    if ("""
-            filter2 = """function(doc, req) {
-                    if ("""
-            for docType in device["configuration"]:
-                filter = filter + "(doc.docType &&"
-                filter = filter + "doc.docType === \"%s\") ||" % docType
-                filter2 = filter2 + "(doc.docType &&"
-                filter2 = filter2 + "doc.docType === \"%s\") ||" % docType
-            filter = filter[0:-3]
-            filter2 = filter2[0:-3]
-            filter = filter + """){
-                        return true;
-                    } else {
-                        return false;
-                    }
-                }"""
-            filter2 = filter2 + """){
-                        return true;
-                    } else {
-                        return false;
-                    }
-                }"""
-            doc = {
-                "_id": "_design/%s" % idDevice,
-                "views": {},
-                "filters": {
-                    "filter": filter,
-                    "filterDocType": filter2
+        # Update device
+        folder = "%s/cozy-files" % os.environ['HOME']
+        device['password'] = pwdDevice
+        device['change'] = 0
+        device['url'] = url
+        device['folder'] = folder
+        db.save(device)
+        # Generate filter
+        filter = """function(doc, req) {
+                if(doc._deleted) {
+                    return true;
                 }
+                if ("""
+        filter2 = """function(doc, req) {
+                if ("""
+        for docType in device["configuration"]:
+            filter = filter + "(doc.docType &&"
+            filter = filter + "doc.docType === \"%s\") ||" % docType
+            filter2 = filter2 + "(doc.docType &&"
+            filter2 = filter2 + "doc.docType === \"%s\") ||" % docType
+        filter = filter[0:-3]
+        filter2 = filter2[0:-3]
+        filter = filter + """){
+                    return true;
+                } else {
+                    return false;
+                }
+            }"""
+        filter2 = filter2 + """){
+                    return true;
+                } else {
+                    return false;
+                }
+            }"""
+        doc = {
+            "_id": "_design/%s" % idDevice,
+            "views": {},
+            "filters": {
+                "filter": filter,
+                "filterDocType": filter2
             }
-            try:
-                db.save(doc)
-            except ResourceConflict:
-                print 'Device filter document already exists'
-        return False
-
-
-def _get_credentials():
-    '''
-    Get credentials from config file.
-    '''
-    credentials_file = open('/etc/cozy/cozy-files/couchdb.login')
-    lines = credentials_file.readlines()
-    credentials_file.close()
-    username = lines[0].strip()
-    password = lines[1].strip()
-    return (username, password)
+        }
+        try:
+            db.save(doc)
+        except ResourceConflict:
+            print 'Device filter document already exists'
+    return False
