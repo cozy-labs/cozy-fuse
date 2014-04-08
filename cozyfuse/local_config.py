@@ -7,6 +7,13 @@ from yaml import Loader
 CONFIG_PATH = os.path.join(os.path.expanduser('~'), '.cozyfuse')
 
 
+class NoConfigFound(Exception):
+    pass
+
+class NoConfigFile(Exception):
+    pass
+
+
 def add_config(name, url, path, db_login, db_password):
     '''
     Add to the config file (~/.cozyfuse) device named *name* with *url* and
@@ -36,8 +43,8 @@ def get_config(name):
     config = get_full_config()
 
     if not config.has_key(name):
-        print '[config] No device is registered for this name'
-        return (None, None)
+        print '[config] No device is registered for %s' % name
+        raise NoConfigFound
 
     else:
         url = config[name]['url']
@@ -49,8 +56,8 @@ def get_device_config(name):
     config = get_full_config()
 
     if not config.has_key(name):
-        print '[config] No device is registered for this name'
-        return (None, None)
+        print '[config] No device is registered for %s' % name
+        raise NoConfigFound
 
     else:
         try:
@@ -72,7 +79,9 @@ def set_device_config(name, device_id, device_password):
     config = get_full_config()
 
     if not config.has_key(name):
-        print '[config] No device is registered for this name'
+        print '[config] No device is registered for %s' % name
+        raise NoConfigFound
+
     else:
         config[name]['deviceid'] = device_id
         config[name]['devicepassword'] = device_password
@@ -89,8 +98,8 @@ def get_db_credentials(name):
     config = get_full_config()
 
     if not config.has_key(name):
-        print '[config] No device is registered for this name'
-        return (None, None)
+        print '[config] No device is registered for %s' % name
+        raise NoConfigFound
     else:
         db_login =config[name]['dblogin']
         db_password = config[name]['dbpassword']
@@ -106,7 +115,7 @@ def get_full_config():
         stream = file(CONFIG_PATH, 'r')
     except IOError:
         print 'Config file (~/.cozyfuse) does not exist.'
-        return None
+        raise NoConfigFile
 
     config = load(stream, Loader=Loader)
     stream.close()
