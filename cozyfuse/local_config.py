@@ -114,8 +114,8 @@ def get_full_config():
     try:
         stream = file(CONFIG_PATH, 'r')
     except IOError:
-        print 'Config file (~/.cozyfuse) does not exist.'
-        raise NoConfigFile
+        print 'Config file %s does not exist.' % CONFIG_PATH
+        raise NoConfigFile("Config file not found: ~/.cozyfuse doesn't exist")
 
     config = load(stream, Loader=Loader)
     stream.close()

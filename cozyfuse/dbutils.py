@@ -2,6 +2,7 @@ import json
 import string
 import random
 import requests
+import logging
 
 import replication
 import local_config
@@ -19,7 +20,8 @@ def get_db(database):
         server.resource.credentials = local_config.get_db_credentials(database)
         db = server[database]
     except Exception:
-        print('[DB] Cannot connect to the database')
+        logging.exception('[DB] Cannot connect to the database')
+
         return None
     return db
 
@@ -36,6 +38,7 @@ def get_db_and_server(database):
     except Exception:
         print('[DB] Cannot connect to the database')
         return (None, None)
+
 
 def init_db(database):
     '''

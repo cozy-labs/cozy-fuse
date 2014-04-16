@@ -24,7 +24,7 @@ def register_device_remotely(name):
     password = getpass.getpass('Type your password:\n')
     (device_id, device_password) = remote.register_device(name, url,
                                                           path, password)
-    local_config.save_remote_data_to_config(name, device_id, device_password)
+    local_config.save_device_config(name, device_id, device_password)
     print 'Device registered'
 
 
@@ -110,7 +110,12 @@ def reset():
     * Destroy corresponding DBs.
     '''
     # Remove devices remotely
-    config = local_config.get_full_config()
+    try:
+        config = local_config.get_full_config()
+    except local_config.NoConfigFile:
+        print 'No config file found, cannot reset anything'
+        return True
+
     try:
         for name in config.keys():
             print '[reset] Clearing %s' % name

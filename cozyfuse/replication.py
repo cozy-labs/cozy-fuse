@@ -26,7 +26,6 @@ def replicate(database, url, device, device_password, device_id,
     * *deleted*: if false deleted documents are not replicated.
     * *seq*: sequence number from where to start the replication.
     '''
-
     url = url.split('/')
     local = 'http://%s:%s@localhost:5984/%s' % (db_login, db_password, database)
     remote = "https://%s:%s@%s/cozy" % (device, device_password, url[2])
