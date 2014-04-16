@@ -1,6 +1,7 @@
-import traceback
+import logging
+import dbutils
+import local_config
 
-from couchdb import Server
 
 CREDENTIALS_FILE_PATH = '/etc/cozy/cozy-files/couchdb.login'
 
@@ -11,28 +12,24 @@ class Replication():
     '''
 
     def __init__(self, db_name, *args, **kwargs):
-        self.set_credentials()
+        self.set_credentials(db_name)
         self.set_db_server(db_name)
         self.replicate_file_changes()
 
-    def set_credentials(self):
+    def set_credentials(self, db_name):
         '''
         Get credentials from file located at *CREDENTIALS_FILE_PATH*.
         Credentials are sperated by a carriage return.
         '''
-        credentials_file = open(CREDENTIALS_FILE_PATH)
-        lines = credentials_file.readlines()
-        credentials_file.close()
-        self.username = lines[0].strip()
-        self.password = lines[1].strip()
+
+        (self.username, self.password) = \
+            local_config.get_db_credentials(db_name)
 
     def set_db_server(self, db_name):
         '''
         Configure CouchDB connectors (location + credentials).
         '''
-        self.server = Server('http://localhost:5984/')
-        self.server.resource.credentials = (self.username, self.password)
-        self.db = self.server[db_name]
+        (self.db, self.server) = dbutils.get_db_and_server(db_name)
         self.db_name = db_name
 
     def replicate_file_changes(self):
@@ -112,9 +109,11 @@ class Replication():
                         self.ids[id_doc] = ["", ""]
 
         except Exception:
-            print 'An error occured while replicating creation for:'
-            print 'doc %s' % line['doc']['_id']
-            traceback.print_stack()
+            logging.exception(
+                'An error occured while replicating creation for:' \
+                'doc %s' % line['doc']['_id']
+            )
+
 
     def _delete_file(self, line):
         '''
@@ -128,9 +127,10 @@ class Replication():
                     self.db.delete(self.db[binary])
                     self._replicate_to_local([binary])
         except Exception:
-            print 'An error occured while replicating deletion for:'
-            print 'doc %s' % line['doc']['_id']
-            traceback.print_stack()
+            logging.exception(
+                'An error occured while replicating deletion for:'
+                'doc %s' % line['doc']['_id']
+            )
 
     def _update_file(self, line):
         '''
@@ -146,9 +146,10 @@ class Replication():
                         self.ids[id_doc] = [binary['id'], binary['rev']]
                         self._replicate_to_local([binary['id']])
         except Exception:
-            print 'An error occured while replicating update for:'
-            print 'doc %s' % line['doc']['_id']
-            traceback.print_stack()
+            logging.exception(
+                'An error occured while replicating update for:'
+                'doc %s' % line['doc']['_id']
+            )
 
     def _replicate_to_local(self, ids):
         '''

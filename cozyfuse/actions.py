@@ -130,6 +130,7 @@ def reset():
     except ResourceNotFound:
         print '[reset] No device found locally'
 
+
     # Remove local config file
     local_config.clear()
     print '[reset] Configuraton file deleted'

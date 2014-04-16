@@ -15,8 +15,8 @@ actions are:
    new_device: register a new device locally and remotely.
    remove_device: remove given device locally and remotely.
 
-   mount_folder: mount folder for given device.
-   unmount_folder: unmount folder for given device.
+   mount: mount folder for given device.
+   unmount: unmount folder for given device.
 
    run_replication: run first replication for given device.
    start_sync: synchronize given device with its remote configuration.
@@ -64,10 +64,10 @@ def main(argv=sys.argv):
     elif args.action == 'start_sync':
         actions.start_auto_sync(args.name)
 
-    elif args.action == 'mount_folder':
+    elif args.action == 'mount':
         actions.mount_folder(args.name)
 
-    elif args.action == 'unmount_folder':
+    elif args.action == 'unmount':
         actions.unmount_folder(args.name, args.path)
 
     elif args.action == 'display_config':

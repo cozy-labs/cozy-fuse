@@ -54,7 +54,7 @@ def remove_db(database):
     '''
     Destroy given database.
     '''
-    (db, server) = get_db_and_server(database)
+    server = Server('http://localhost:5984/')
     server.delete(database)
 
 
@@ -80,7 +80,7 @@ def get_device(name):
     Get device corresponding to given name. Device is returned as a dict.
     '''
     try:
-        device = list(get_db().view("device/all", key=name))[0]
+        device = list(get_db(name).view("device/all", key=name))[0]
     except IndexError:
         device = None
     return device
@@ -125,7 +125,8 @@ def create_db_user(database, login, password, protocol="http"):
            "roles": []
         },
     }
-    requests.put('%s://localhost:5984/%s/_security' % (protocol, database),
-                 data=json.dumps(data),
-                 headers=headers,
-                 verify=False)
+    response = requests.put('%s://localhost:5984/%s/_security' % (protocol, database),
+         data=json.dumps(data),
+         headers=headers,
+         verify=False)
+    print response.content

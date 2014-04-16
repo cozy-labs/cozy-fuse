@@ -24,6 +24,11 @@ def add_config(name, url, path, db_login, db_password):
         print 'Name, URL or path is missing'
 
     else:
+        # Create config file if it doesn't exist.
+        if not os.path.isfile(CONFIG_PATH):
+            with file(CONFIG_PATH, 'a'):
+                os.utime(CONFIG_PATH, None)
+
         config = get_full_config()
         config[name] = {
             'url': url,
@@ -31,11 +36,6 @@ def add_config(name, url, path, db_login, db_password):
             'dblogin': db_login,
             'dbpassword': db_password,
         }
-
-        # Create config file if it doesn't exist.
-        if not os.path.isfile(CONFIG_PATH):
-            with file(CONFIG_PATH, 'a'):
-                os.utime(CONFIG_PATH, None)
 
         output_file = file(CONFIG_PATH, 'w')
         dump(config, output_file, default_flow_style=False)
