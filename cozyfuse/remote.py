@@ -18,14 +18,14 @@ def register_device(name, url, path, password):
     )
 
     if response.status_code == 403:
-        print 'Registering device failed for %s (wrong password).' % name
+        print '[Remote config] Registering device failed for ' \
+              '%s (wrong password).' % name
         return (None, None)
     else:
-        print response.content
         data = json.loads(response.content)
         device_id = str(data["id"])
         device_password = str(data["password"])
-        print 'Registering device succeed for %s.' % name
+        print '[Remote config] Registering device succeeded for %s.' % name
         return (device_id, device_password)
 
 

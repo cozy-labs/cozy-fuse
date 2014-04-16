@@ -120,22 +120,22 @@ def init_database(database):
     # Create database
     try:
         db = SERVER.create(database)
-        print 'Database created'
+        print '[DB] Database %s created' % database
     except PreconditionFailed:
         db = SERVER[database]
-        print 'Database already exists'
+        print '[DB] Database %s already exists.' % database
 
     try:
         add_view('Folder', db)
-        print 'Folder design document created'
+        print '[DB] Folder design document created'
     except ResourceConflict:
-        print 'Folder design document already exists'
+        print '[DB] Folder design document already exists'
 
     try:
         add_view('File', db)
-        print 'File design document created'
+        print '[DB] File design document created'
     except ResourceConflict:
-        print 'File design document already exists'
+        print '[DB] File design document already exists'
 
     try:
         db["_design/device"] = {
@@ -156,9 +156,9 @@ def init_database(database):
                 }
             }
         }
-        print 'Device design document created'
+        print '[DB] Device design document created'
     except ResourceConflict:
-        print 'Device design document already exists'
+        print '[DB] Device design document already exists'
 
     try:
         db["_design/binary"] = {
@@ -172,9 +172,9 @@ def init_database(database):
                 }
             }
         }
-        print 'Binary design document created'
+        print '[DB] Binary design document created'
     except ResourceConflict:
-        print 'Binary design document already exists'
+        print '[DB] Binary design document already exists'
 
 
 def init_device(database, url, pwdDevice, idDevice):
@@ -235,5 +235,5 @@ def init_device(database, url, pwdDevice, idDevice):
         try:
             db.save(doc)
         except ResourceConflict:
-            print 'Device filter document already exists'
+            print '[DB] Device filter document already exists'
     return False

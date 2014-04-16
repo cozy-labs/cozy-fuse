@@ -24,8 +24,8 @@ def register_device_remotely(name):
     password = getpass.getpass('Type your password:\n')
     (device_id, device_password) = remote.register_device(name, url,
                                                           path, password)
-    local_config.save_device_config(name, device_id, device_password)
-    print 'Device registered'
+    local_config.set_device_config(name, device_id, device_password)
+    print '[Device] Device registered'
 
 
 def remove_device_remotely(name):
@@ -48,14 +48,12 @@ def init_replication(name):
     (device_id, password) = local_config.get_device_config(name)
     (db_login, db_password) = local_config.get_db_credentials(name)
 
-
     replication.replicate(
        name, url, name, password, device_id, db_login, db_password,
        to_local=True, continuous=False, deleted=False)
     print '[Replication] One shot replication is done'
 
-    replication.init_device(name, url, password, device_id,
-                            db_login, db_password)
+    replication.init_device(name, url, password, device_id)
     print '[Replication] Device initialized'
 
     replication.replicate(
@@ -194,6 +192,8 @@ def configure_new_device(name, url, path):
     local_config.add_config(name, url, path, db_login, db_password)
     register_device_remotely(name)
     init_replication(name)
+    print 'New device %s configured.' % name
+    print 'Use cozy-fuse mount -n %s to see your files.' % name
 
 
 def start_auto_sync(name):

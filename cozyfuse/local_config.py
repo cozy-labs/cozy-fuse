@@ -31,9 +31,15 @@ def add_config(name, url, path, db_login, db_password):
             'dblogin': db_login,
             'dbpassword': db_password,
         }
+
+        # Create config file if it doesn't exist.
+        if not os.path.isfile(CONFIG_PATH):
+            with file(CONFIG_PATH, 'a'):
+                os.utime(CONFIG_PATH, None)
+
         output_file = file(CONFIG_PATH, 'w')
         dump(config, output_file, default_flow_style=False)
-        print '[config] Configuration for %s saved' % name
+        print '[Config] Configuration for %s saved' % name
 
 
 def get_config(name):
@@ -43,7 +49,7 @@ def get_config(name):
     config = get_full_config()
 
     if not config.has_key(name):
-        print '[config] No device is registered for %s' % name
+        print '[Config] No device is registered for %s' % name
         raise NoConfigFound
 
     else:
@@ -56,7 +62,7 @@ def get_device_config(name):
     config = get_full_config()
 
     if not config.has_key(name):
-        print '[config] No device is registered for %s' % name
+        print '[Config] No device is registered for %s' % name
         raise NoConfigFound
 
     else:
@@ -79,7 +85,7 @@ def set_device_config(name, device_id, device_password):
     config = get_full_config()
 
     if not config.has_key(name):
-        print '[config] No device is registered for %s' % name
+        print '[Config] No device is registered for %s' % name
         raise NoConfigFound
 
     else:
@@ -88,7 +94,7 @@ def set_device_config(name, device_id, device_password):
 
         output_file = file(CONFIG_PATH, 'w')
         dump(config, output_file, default_flow_style=False)
-        print '[config] Remote data added to config file'
+        print '[Config] Remote data added to config file'
 
 
 def get_db_credentials(name):
@@ -98,7 +104,7 @@ def get_db_credentials(name):
     config = get_full_config()
 
     if not config.has_key(name):
-        print '[config] No device is registered for %s' % name
+        print '[Config] No device is registered for %s' % name
         raise NoConfigFound
     else:
         db_login =config[name]['dblogin']
@@ -114,7 +120,7 @@ def get_full_config():
     try:
         stream = file(CONFIG_PATH, 'r')
     except IOError:
-        print 'Config file %s does not exist.' % CONFIG_PATH
+        print '[Config] Config file %s does not exist.' % CONFIG_PATH
         raise NoConfigFile("Config file not found: ~/.cozyfuse doesn't exist")
 
     config = load(stream, Loader=Loader)

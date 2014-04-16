@@ -18,12 +18,11 @@ def get_db(database):
     try:
         server = Server('http://localhost:5984/')
         server.resource.credentials = local_config.get_db_credentials(database)
-        db = server[database]
+        return server[database]
     except Exception:
         logging.exception('[DB] Cannot connect to the database')
 
         return None
-    return db
 
 
 def get_db_and_server(database):
@@ -36,7 +35,7 @@ def get_db_and_server(database):
         db = server[database]
         return (db, server)
     except Exception:
-        print('[DB] Cannot connect to the database')
+        logging.exception('[DB] Cannot connect to the database %s' % database)
         return (None, None)
 
 
