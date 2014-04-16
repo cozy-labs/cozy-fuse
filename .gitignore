@@ -1,2 +1,8 @@
 *.pyc
 *.swp
+
+build
+*egg*
+dist
+virtualenv
+TODO
