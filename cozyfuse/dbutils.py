@@ -4,11 +4,11 @@ import random
 import requests
 import logging
 
-import replication
 import local_config
 
 
 from couchdb import Server
+from couchdb.http import PreconditionFailed, ResourceConflict
 
 
 def get_db(database):
@@ -43,7 +43,7 @@ def init_db(database):
     '''
     Create all required views to make Cozy FUSE working properly.
     '''
-    replication.init_database(database)
+    init_database_views(database)
     password = get_random_key()
     create_db_user(database, database, password)
     print '[DB] Local database initialized'
@@ -130,3 +130,163 @@ def create_db_user(database, login, password, protocol="http"):
          headers=headers,
          verify=False)
     print response.content
+
+
+def init_database_view(docType, db):
+    '''
+    Add view in database for given docType.
+    '''
+    db["_design/%s" % docType.lower()] = {
+        "views": {
+            "all": {
+                "map": """function (doc) {
+                              if (doc.docType === \"%s\") {
+                                  emit(doc._id, doc)
+                              }
+                           }""" % docType
+            },
+            "byFolder": {
+                "map": """function (doc) {
+                              if (doc.docType === \"%s\") {
+                                  emit(doc.path, doc)
+                              }
+                          }""" % docType
+            },
+            "byFullPath": {
+                "map": """function (doc) {
+                              if (doc.docType === \"%s\") {
+                                  emit(doc.path + '/' + doc.name, doc)
+                              }
+                          }""" % docType
+            }
+        }
+    }
+
+
+def init_database_views(database):
+    '''
+    Initialize database:
+        * Create database
+        * Initialize folder, file, binary and device views
+    '''
+    server = Server('http://localhost:5984/')
+
+    # Create database
+    try:
+        db = server.create(database)
+        print '[DB] Database %s created' % database
+    except PreconditionFailed:
+        db = server[database]
+        print '[DB] Database %s already exists.' % database
+
+    try:
+        init_database_view('Folder', db)
+        print '[DB] Folder design document created'
+    except ResourceConflict:
+        print '[DB] Folder design document already exists'
+
+    try:
+        init_database_view('File', db)
+        print '[DB] File design document created'
+    except ResourceConflict:
+        print '[DB] File design document already exists'
+
+    try:
+        db["_design/device"] = {
+            "views": {
+                "all": {
+                    "map": """function (doc) {
+                                  if (doc.docType === \"Device\") {
+                                      emit(doc.login, doc)
+                                  }
+                              }"""
+                },
+                "byUrl": {
+                    "map": """function (doc) {
+                                  if (doc.docType === \"Device\") {
+                                      emit(doc.url, doc)
+                                  }
+                              }"""
+                }
+            }
+        }
+        print '[DB] Device design document created'
+    except ResourceConflict:
+        print '[DB] Device design document already exists'
+
+    try:
+        db["_design/binary"] = {
+            "views": {
+                "all": {
+                    "map": """function (doc) {
+                                  if (doc.docType === \"Binary\") {
+                                      emit(doc._id, doc)
+                                  }
+                               }"""
+                }
+            }
+        }
+        print '[DB] Binary design document created'
+    except ResourceConflict:
+        print '[DB] Binary design document already exists'
+
+
+
+def init_device(database, url, path, device_pwd, device_id):
+    '''
+    Initialize device
+        url {string}: cozy url
+        device_pwd {string}: device password
+        device_id {Number}: device id
+    '''
+    db = get_db(database)
+    device = get_device(database)
+
+    # Update device
+    device['password'] = device_pwd
+    device['change'] = 0
+    device['url'] = url
+    device['folder'] = path
+    db.save(device)
+
+    # Generate filter
+    conditions = ""
+    for docType in device["configuration"]:
+        conditions += '(doc.docType &&' \
+                      ' doc.docType === "%s") ||' % docType
+    conditions = conditions[0:-3]
+
+    first_filter = """function(doc, req) {
+        if(doc._deleted) {
+            return true;
+        }
+        if (%s){
+            return true;
+        } else {
+            return false;
+        }
+    }""" % conditions
+
+    doctype_filter = """function(doc, req) {
+        if (%s){
+            return true;
+       } else {
+            return false;
+        }
+    }""" % conditions
+
+    doc = {
+        "_id": "_design/%s" % device_id,
+        "views": {},
+        "filters": {
+            "filter": first_filter,
+            "filterDocType": doctype_filter
+        }
+    }
+
+    try:
+        db.save(doc)
+    except ResourceConflict:
+        print '[DB] Device filter document already exists'
+
+    return False

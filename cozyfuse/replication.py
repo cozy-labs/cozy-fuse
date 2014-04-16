@@ -1,16 +1,9 @@
 import dbutils
 
 from couchdb import Server
-from couchdb.http import PreconditionFailed, ResourceConflict
 
-try:
-    import simplejson as json
-except ImportError:
-    import json  # Python 2.6
+import json
 import requests
-import os
-
-SERVER = Server('http://localhost:5984/')
 
 
 def replicate(database, url, device, device_password, device_id,
@@ -29,6 +22,7 @@ def replicate(database, url, device, device_password, device_id,
     url = url.split('/')
     local = 'http://%s:%s@localhost:5984/%s' % (db_login, db_password, database)
     remote = "https://%s:%s@%s/cozy" % (device, device_password, url[2])
+    server = Server('http://localhost:5984/')
 
     if to_local:
         target = local
@@ -43,14 +37,14 @@ def replicate(database, url, device, device_password, device_id,
         filter_name = "%s/filterDocType" % device_id
 
     if seq is None:
-        SERVER.replicate(source, target, continuous=continuous,
+        server.replicate(source, target, continuous=continuous,
                          filter=filter_name)
     else:
-        SERVER.replicate(source, target, continuous=continuous,
+        server.replicate(source, target, continuous=continuous,
                          filter=filter_name, since_seq=seq)
 
 
-def recover_progression():
+def get_progression():
     '''
     Recover progression of metadata replication
     '''
@@ -65,175 +59,14 @@ def recover_progression():
     return prog/200.
 
 
-def recover_progression_binary(database):
+def get_binary_progression(database):
     '''
-    Recover progression of binaries download
+    Recover progression of binary downloads.
     '''
-    db = SERVER[database]
+    db = dbutils.get_db(database)
     files = db.view("file/all")
     binaries = db.view('binary/all')
     if len(files) is 0:
         return 1
     else:
         return len(binaries)/float(len(files))
-
-
-def add_view(docType, db):
-    '''
-    Add view in database
-        docType {string}: docType of view
-        db {Object}: database
-    '''
-    db["_design/%s" % docType.lower()] = {
-        "views": {
-            "all": {
-                "map": """function (doc) {
-                              if (doc.docType === \"%s\") {
-                                  emit(doc._id, doc)
-                              }
-                           }""" % docType
-            },
-            "byFolder": {
-                "map": """function (doc) {
-                              if (doc.docType === \"%s\") {
-                                  emit(doc.path, doc)
-                              }
-                          }""" % docType
-            },
-            "byFullPath": {
-                "map": """function (doc) {
-                              if (doc.docType === \"%s\") {
-                                  emit(doc.path + '/' + doc.name, doc)
-                              }
-                          }""" % docType
-            }
-        }
-    }
-
-
-def init_database(database):
-    '''
-    Initialize database:
-        * Create database
-        * Initialize folder, file, binary and device views
-    '''
-    # Create database
-    try:
-        db = SERVER.create(database)
-        print '[DB] Database %s created' % database
-    except PreconditionFailed:
-        db = SERVER[database]
-        print '[DB] Database %s already exists.' % database
-
-    try:
-        add_view('Folder', db)
-        print '[DB] Folder design document created'
-    except ResourceConflict:
-        print '[DB] Folder design document already exists'
-
-    try:
-        add_view('File', db)
-        print '[DB] File design document created'
-    except ResourceConflict:
-        print '[DB] File design document already exists'
-
-    try:
-        db["_design/device"] = {
-            "views": {
-                "all": {
-                    "map": """function (doc) {
-                                  if (doc.docType === \"Device\") {
-                                      emit(doc.login, doc)
-                                  }
-                              }"""
-                },
-                "byUrl": {
-                    "map": """function (doc) {
-                                  if (doc.docType === \"Device\") {
-                                      emit(doc.url, doc)
-                                  }
-                              }"""
-                }
-            }
-        }
-        print '[DB] Device design document created'
-    except ResourceConflict:
-        print '[DB] Device design document already exists'
-
-    try:
-        db["_design/binary"] = {
-            "views": {
-                "all": {
-                    "map": """function (doc) {
-                                  if (doc.docType === \"Binary\") {
-                                      emit(doc._id, doc)
-                                  }
-                               }"""
-                }
-            }
-        }
-        print '[DB] Binary design document created'
-    except ResourceConflict:
-        print '[DB] Binary design document already exists'
-
-
-def init_device(database, url, pwdDevice, idDevice):
-    '''
-    Initialize device
-        url {string}: cozy url
-        pwdDevice {string}: device password
-        idDevice {Number}: device id
-    '''
-    db = dbutils.get_db(database)
-    res = db.view("device/all")
-
-    for device in res:
-        device = device.value
-
-        # Update device
-        folder = "%s/cozy-files" % os.environ['HOME']
-        device['password'] = pwdDevice
-        device['change'] = 0
-        device['url'] = url
-        device['folder'] = folder
-        db.save(device)
-        # Generate filter
-        filter = """function(doc, req) {
-                if(doc._deleted) {
-                    return true;
-                }
-                if ("""
-        filter2 = """function(doc, req) {
-                if ("""
-        for docType in device["configuration"]:
-            filter = filter + "(doc.docType &&"
-            filter = filter + "doc.docType === \"%s\") ||" % docType
-            filter2 = filter2 + "(doc.docType &&"
-            filter2 = filter2 + "doc.docType === \"%s\") ||" % docType
-        filter = filter[0:-3]
-        filter2 = filter2[0:-3]
-        filter = filter + """){
-                    return true;
-                } else {
-                    return false;
-                }
-            }"""
-        filter2 = filter2 + """){
-                    return true;
-                } else {
-                    return false;
-                }
-            }"""
-        doc = {
-            "_id": "_design/%s" % idDevice,
-            "views": {},
-            "filters": {
-                "filter": filter,
-                "filterDocType": filter2
-            }
-        }
-        try:
-            db.save(doc)
-        except ResourceConflict:
-            print '[DB] Device filter document already exists'
-    return False

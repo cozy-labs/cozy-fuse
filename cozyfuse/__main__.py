@@ -18,7 +18,6 @@ actions are:
    mount: mount folder for given device.
    unmount: unmount folder for given device.
 
-   run_replication: run first replication for given device.
    start_sync: synchronize given device with its remote configuration.
    kill_running_replications: terminate running replications.
 
@@ -57,9 +56,6 @@ def main(argv=sys.argv):
 
     elif args.action == 'register_device':
         actions.register_device_remotely(args.name)
-
-    elif args.action == 'run_replication':
-        actions.run_replication(args.name)
 
     elif args.action == 'start_sync':
         actions.start_auto_sync(args.name)

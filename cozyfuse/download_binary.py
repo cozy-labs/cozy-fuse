@@ -12,25 +12,11 @@ class Replication():
     '''
 
     def __init__(self, db_name, *args, **kwargs):
-        self.set_credentials(db_name)
-        self.set_db_server(db_name)
-        self.replicate_file_changes()
-
-    def set_credentials(self, db_name):
-        '''
-        Get credentials from file located at *CREDENTIALS_FILE_PATH*.
-        Credentials are sperated by a carriage return.
-        '''
-
         (self.username, self.password) = \
             local_config.get_db_credentials(db_name)
-
-    def set_db_server(self, db_name):
-        '''
-        Configure CouchDB connectors (location + credentials).
-        '''
         (self.db, self.server) = dbutils.get_db_and_server(db_name)
         self.db_name = db_name
+        self.replicate_file_changes()
 
     def replicate_file_changes(self):
         '''
@@ -82,7 +68,7 @@ class Replication():
         '''
         Document is considered as new if its revision starts by "1-"
         '''
-        return line['doc']['_rev'][0] is "1" and line['doc']['_rev'][1] is '-'
+        return line['doc']['_rev'][0:1] == "1-"
 
     def _is_deleted(self, line):
         '''
@@ -145,6 +131,7 @@ class Replication():
                     if binary['rev'] != self.ids[id_doc][1]:
                         self.ids[id_doc] = [binary['id'], binary['rev']]
                         self._replicate_to_local([binary['id']])
+
         except Exception:
             logging.exception(
                 'An error occured while replicating update for:'

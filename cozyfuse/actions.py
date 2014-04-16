@@ -9,8 +9,8 @@ import remote
 
 from couchdb.http import ResourceNotFound
 
+import dbutils
 from download_binary import Replication
-from dbutils import init_db, remove_db
 from couchdb import Server
 
 
@@ -53,7 +53,7 @@ def init_replication(name):
        to_local=True, continuous=False, deleted=False)
     print '[Replication] One shot replication is done'
 
-    replication.init_device(name, url, password, device_id)
+    dbutils.init_device(name, url, path, password, device_id)
     print '[Replication] Device initialized'
 
     replication.replicate(
@@ -124,7 +124,7 @@ def reset():
             print '[reset] Device %s unregistered' % name
 
             # Remove database
-            remove_db(name)
+            dbutils.remove_db(name)
             print '[reset] Local database deleted'
 
     except ResourceNotFound:
@@ -177,7 +177,7 @@ def unregister_device(name):
     (url, path) = local_config.get_config(name)
     (device_id, device_password) = local_config.get_device_config(name)
     local_config.remove(name)
-    remove_db(name)
+    dbutils.remove_db(name)
     password = getpass.getpass('Type your password:\n')
     remote.remove_device(url, device_id, password)
 
@@ -189,7 +189,7 @@ def configure_new_device(name, url, path):
     * Register device on remote Cozy defined by *url*.
     * Init replications.
     '''
-    (db_login, db_password) = init_db(name)
+    (db_login, db_password) = dbutils.init_db(name)
     local_config.add_config(name, url, path, db_login, db_password)
     register_device_remotely(name)
     init_replication(name)
@@ -199,14 +199,20 @@ def configure_new_device(name, url, path):
 
 def start_auto_sync(name):
     '''
-
+    Run continuous synchronization between CouchDB instances.
     '''
     (url, path) = local_config.get_config(name)
     (device_id, device_password) = local_config.get_device_config(name)
+    (db_login, db_password) = local_config.get_db_credentials(name)
 
-    replication.replicate_to_local(
-        name, url, name, device_password, device_id)
-    replication.replicate_from_local(
-        name, url, name, device_password, device_id)
+    replication.replicate(name, url, name, device_password, device_id,
+                          db_login, db_password, to_local=True)
+    print '[Replication] Start remote to local replication'
 
+    replication.replicate(name, url, name, device_password, device_id,
+                          db_login, db_password)
+    print '[Replication] Start local to remote replication'
+
+    print '[Replication] Run binary synchronization...'
+    run_replication(name)
 
