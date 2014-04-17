@@ -270,8 +270,6 @@ class CouchFSDocument(fuse.Fuse):
                  file
         """
         (file_path, name) = _path_split(path)
-        print file_path
-        print name
 
         new_binary = {"docType": "Binary"}
         binary_id = self.db.create(new_binary)
@@ -363,9 +361,7 @@ class CouchFSDocument(fuse.Fuse):
         """
         for doc in self.db.view("file/byFullPath", key=pathfrom):
             doc = doc.value
-            print doc
             (file_path, name) = _path_split(pathto)
-            print file_path
             doc.update({"name": name, "path": file_path})
             self.db.save(doc)
             return 0

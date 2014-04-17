@@ -110,8 +110,6 @@ class BinaryReplication():
                 else:
                     self.ids[res.id] = [id_binary, ""]
 
-        print len(self.ids.keys())
-
         changes = self.db.changes(feed='continuous',
                                   heartbeat='1000',
                                   since=device['change'],
