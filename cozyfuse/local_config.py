@@ -42,6 +42,19 @@ def add_config(name, url, path, db_login, db_password):
         print '[Config] Configuration for %s saved' % name
 
 
+def remove_config(name):
+    '''
+    Add to the config file (~/.cozyfuse) device named *name* with *url* and
+    *path* as parameters.
+    '''
+
+    config = get_full_config()
+    config.pop(name, None)
+    output_file = file(CONFIG_PATH, 'w')
+    dump(config, output_file, default_flow_style=False)
+    print '[Config] Configuration for %s removed' % name
+
+
 def get_config(name):
     '''
     Get configuration of device *name* from configuration file.

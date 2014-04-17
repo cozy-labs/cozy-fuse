@@ -90,11 +90,36 @@ def kill_running_replications():
             print 'Replication %s was not stopped.' % data['replication_id']
 
 
+def remove_device(name):
+    '''
+    Remove device from local and remote configuration by:
+
+    * Unmounting device folder.
+    * Removing device on corresponding remote cozy.
+    * Removing device from configuration file.
+    * Destroying corresponding DB.
+    '''
+
+    (url, path) = local_config.get_config(name)
+
+    couchmount.unmount(path)
+    print '[mount] %s unmounted' % path
+    remove_device_remotely(name)
+    print '[remote] Device %s unregistered' % name
+
+    # Remove database
+    dbutils.remove_db(name)
+    dbutils.remove_db_user(name)
+    print '[db] Local database deleted for %s' % name
+
+    local_config.remove_config(name)
+
+
 def reset():
     '''
     Reset local and remote configuration by:
 
-    * Unmounting each folder device.
+    * Unmounting each device folder.
     * Removing each device on corresponding remote cozies.
     * Removing configuration file.
     * Destroy corresponding DBs.
@@ -109,16 +134,7 @@ def reset():
     try:
         for name in config.keys():
             print '[reset] Clearing %s' % name
-            device = config[name]
-            path = device['path']
-            couchmount.unmount(path)
-            remove_device_remotely(name)
-            print '[reset] Device %s unregistered' % name
-
-            # Remove database
-            dbutils.remove_db(name)
-            dbutils.remove_db_user(name)
-            print '[reset] Local database deleted'
+            remove_device(name)
 
     except ResourceNotFound:
         print '[reset] No device found locally'
