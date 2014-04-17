@@ -24,7 +24,7 @@ def register_device_remotely(name):
     (device_id, device_password) = remote.register_device(name, url,
                                                           path, password)
     local_config.set_device_config(name, device_id, device_password)
-    print '[Device] Device registered'
+    print '[Remote] Device %s registered' % name
 
 
 def remove_device_remotely(name):
@@ -35,7 +35,7 @@ def remove_device_remotely(name):
     (device_id, password) = local_config.get_device_config(name)
     password = getpass.getpass('Type your Cozy password:\n')
     remote.remove_device(url, device_id, password)
-    print '[Device] %s removed' % name
+    print '[Remote] %s removed' % name
 
 
 def init_replication(name):
@@ -117,6 +117,7 @@ def reset():
 
             # Remove database
             dbutils.remove_db(name)
+            dbutils.remove_db_user(name)
             print '[reset] Local database deleted'
 
     except ResourceNotFound:

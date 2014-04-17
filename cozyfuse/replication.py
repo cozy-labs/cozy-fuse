@@ -74,7 +74,6 @@ def get_binary_progression(database):
         return len(binaries)/float(len(files))
 
 
-
 class BinaryReplication():
     '''
     Class that allows to run replications on local database
@@ -95,38 +94,40 @@ class BinaryReplication():
         '''
         Replicate all changes related to files and binaries to stored devices.
         '''
-        for res in self.db.view("device/all"):
-            device = res.value
-            self.urlCozy = device['url']
-            self.loginCozy = device['login']
-            self.passwordCozy = device['password']
 
-            self.ids = {}
-            for res in self.db.view("file/all"):
-                if 'binary' in res.value and 'file' in res.value['binary']:
-                    id_binary = res.value['binary']['file']['id']
-                    if id_binary in self.db:
-                        binary = self.db[id_binary]
-                        self.ids[res.id] = [id_binary, binary.rev]
-                    else:
-                        self.ids[res.id] = [id_binary, ""]
+        device = dbutils.get_device(self.db_name)
+        self.urlCozy = device['url']
+        self.loginCozy = device['login']
+        self.passwordCozy = device['password']
 
-            changes = self.db.changes(feed='continuous',
-                                      heartbeat='1000',
-                                      since=device['change'],
-                                      include_docs=True)
+        self.ids = {}
+        for res in self.db.view("file/all"):
+            if 'binary' in res.value and 'file' in res.value['binary']:
+                id_binary = res.value['binary']['file']['id']
+                if id_binary in self.db:
+                    binary = self.db[id_binary]
+                    self.ids[res.id] = [id_binary, binary.rev]
+                else:
+                    self.ids[res.id] = [id_binary, ""]
 
-            for line in changes:
-                if not self._is_device(line):
-                    device['change'] = line['seq']
-                    self.db.save(device)
+        print len(self.ids.keys())
 
-                    if self._is_deleted(line):
-                        self._delete_file(line)
-                    elif self._is_new(line):
-                        self._add_file(line)
-                    else:
-                        self._update_file(line)
+        changes = self.db.changes(feed='continuous',
+                                  heartbeat='1000',
+                                  since=device['change'],
+                                  include_docs=True)
+
+        for line in changes:
+            if not self._is_device(line):
+                device['change'] = line['seq']
+                self.db.save(device)
+
+                if self._is_deleted(line):
+                    self._delete_file(line)
+                elif self._is_new(line):
+                    self._add_file(line)
+                else:
+                    self._update_file(line)
 
     def _is_device(self, line):
         '''
@@ -141,7 +142,7 @@ class BinaryReplication():
         '''
         Document is considered as new if its revision starts by "1-"
         '''
-        return line['doc']['_rev'][0:1] == "1-"
+        return line['doc']['_rev'][0:2] == "1-"
 
     def _is_deleted(self, line):
         '''

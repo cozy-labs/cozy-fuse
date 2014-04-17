@@ -62,9 +62,9 @@ class CouchFSDocument(fuse.Fuse):
 
         # Configure Cozy
         device = dbutils.get_device(database)
-        self.urlCozy = device.value['url']
-        self.passwordCozy = device.value['password']
-        self.loginCozy = device.value['login']
+        self.urlCozy = device['url']
+        self.passwordCozy = device['password']
+        self.loginCozy = device['login']
 
 
     def get_dirs(self):

@@ -80,7 +80,7 @@ def get_device(name):
     Get device corresponding to given name. Device is returned as a dict.
     '''
     try:
-        device = list(get_db(name).view("device/all", key=name))[0]
+        device = list(get_db(name).view("device/all", key=name))[0].value
     except IndexError:
         device = None
     return device
@@ -125,11 +125,26 @@ def create_db_user(database, login, password, protocol="http"):
            "roles": []
         },
     }
-    response = requests.put('%s://localhost:5984/%s/_security' % (protocol, database),
+    requests.put('%s://localhost:5984/%s/_security' % (protocol, database),
          data=json.dumps(data),
          headers=headers,
          verify=False)
-    print response.content
+    print '[DB] Db user created'
+
+
+def remove_db_user(database):
+    '''
+    Delete user created for this database.
+    '''
+    response = requests.get(
+        'http://localhost:5984/_users/org.couchdb.user:%s' % database)
+    rev = response.json().get("_rev", "")
+
+    response = requests.delete(
+        'http://localhost:5984/_users/org.couchdb.user:%s?rev=%s' % \
+        (database, rev)
+    )
+    print '[DB] Db user %s deleted' % database
 
 
 def init_database_view(docType, db):
@@ -234,10 +249,7 @@ def init_database_views(database):
 
 def init_device(database, url, path, device_pwd, device_id):
     '''
-    Initialize device
-        url {string}: cozy url
-        device_pwd {string}: device password
-        device_id {Number}: device id
+    Create device objects wiht filter to apply to synchronize them.
     '''
     db = get_db(database)
     device = get_device(database)
@@ -247,6 +259,7 @@ def init_device(database, url, path, device_pwd, device_id):
     device['change'] = 0
     device['url'] = url
     device['folder'] = path
+    device['configuration'] = ["File", "Folder"]
     db.save(device)
 
     # Generate filter
@@ -257,10 +270,7 @@ def init_device(database, url, path, device_pwd, device_id):
     conditions = conditions[0:-3]
 
     first_filter = """function(doc, req) {
-        if(doc._deleted) {
-            return true;
-        }
-        if (%s){
+        if(doc._deleted || %s) {
             return true;
         } else {
             return false;
@@ -268,9 +278,9 @@ def init_device(database, url, path, device_pwd, device_id):
     }""" % conditions
 
     doctype_filter = """function(doc, req) {
-        if (%s){
+        if (%s) {
             return true;
-       } else {
+        } else {
             return false;
         }
     }""" % conditions
