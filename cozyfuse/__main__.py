@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import sys
-
-import local_config
 import actions
 
 from argparse import RawTextHelpFormatter
@@ -18,11 +16,12 @@ actions are:
    mount: mount folder for given device.
    unmount: unmount folder for given device.
 
-   start_sync: synchronize given device with its remote configuration.
+   sync: synchronize given device with its remote configuration.
    kill_running_replications: terminate running replications.
 
    reset: clear all data from local computer and remove all device remotely.
    display_config: display configuration for all devices.
+   kill_running_replications: ask to database to stop synchronization.
 
 '''
 
@@ -45,20 +44,14 @@ def main(argv=sys.argv):
         print('\nYou must specify an action argument\n')
         sys.exit(2)
 
-    elif args.action == 'reset':
-        actions.reset()
-
     elif args.action == 'new_device':
         actions.configure_new_device(args.name, args.url, args.path)
 
-    elif args.action == 'add_device':
-        local_config.add_config(args.name, args.url, args.path)
+    elif args.action == 'remove_device':
+        print 'not implemented yet'
 
-    elif args.action == 'register_device':
-        actions.register_device_remotely(args.name)
-
-    elif args.action == 'start_sync':
-        actions.start_auto_sync(args.name)
+    elif args.action == 'sync':
+        actions.sync(args.name)
 
     elif args.action == 'mount':
         actions.mount_folder(args.name)
@@ -66,14 +59,11 @@ def main(argv=sys.argv):
     elif args.action == 'unmount':
         actions.unmount_folder(args.name, args.path)
 
+    elif args.action == 'reset':
+        actions.reset()
+
     elif args.action == 'display_config':
         actions.display_config()
-
-    elif args.action == 'unregister_device':
-        actions.unregister_device(args.name)
-
-    elif args.action == 'remove_device':
-        print 'not implemented yet'
 
     elif args.action == 'kill_running_replications':
         actions.kill_running_replications()

@@ -10,7 +10,6 @@ import remote
 from couchdb.http import ResourceNotFound
 
 import dbutils
-from download_binary import Replication
 from couchdb import Server
 
 
@@ -68,13 +67,6 @@ def init_replication(name):
     replication.replicate(name, url, name, password, device_id,
                           db_login, db_password)
     print '[Replication] Start local to remote replication'
-
-
-def run_replication(name):
-    '''
-    Run binary replicator daemon.
-    '''
-    Replication(name)
 
 
 def kill_running_replications():
@@ -197,7 +189,7 @@ def configure_new_device(name, url, path):
     print 'Use cozy-fuse mount -n %s to see your files.' % name
 
 
-def start_auto_sync(name):
+def sync(name):
     '''
     Run continuous synchronization between CouchDB instances.
     '''
@@ -214,5 +206,4 @@ def start_auto_sync(name):
     print '[Replication] Start local to remote replication'
 
     print '[Replication] Run binary synchronization...'
-    run_replication(name)
-
+    replication.BinaryReplication(name)
