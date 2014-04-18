@@ -150,9 +150,13 @@ def mount_folder(name):
     '''
     try:
         (url, path) = local_config.get_config(name)
-        couchmount.mount(name, path)
+        couchmount.unmount(path)
+        context = local_config.get_daemon_context(name, 'mount')
+        with context:
+            couchmount.mount(name, path)
+        print '[mount] Folder %s mounted' % path
     except KeyboardInterrupt:
-        unmount_folder()
+        unmount_folder(name)
 
 
 def unmount_folder(name, path=None):
@@ -162,6 +166,7 @@ def unmount_folder(name, path=None):
     if path is None:
         (url, path) = local_config.get_config(name)
     couchmount.unmount(path)
+    print '[mount] Folder %s unmounted' % path
 
 
 def display_config():
@@ -223,6 +228,8 @@ def sync(name):
 
     print '[Replication] Run binary synchronization...'
     try:
-        replication.BinaryReplication(name)
+        context = local_config.get_daemon_context(name, 'sync')
+        with context:
+            replication.BinaryReplication(name)
     except KeyboardInterrupt:
         print '[Replication] Synchronization interrupted.'

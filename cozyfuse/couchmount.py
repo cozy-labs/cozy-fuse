@@ -497,7 +497,6 @@ def unmount(path):
     if path is None:
         path = _recover_path()
     subprocess.call(["fusermount", "-u", path])
-    print 'Folder %s unmounted' % path
 
 
 def mount(name, path):

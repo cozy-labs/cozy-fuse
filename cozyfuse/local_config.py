@@ -1,10 +1,13 @@
 import os
+import daemon
+import lockfile
 
 from yaml import load, dump
 from yaml import Loader
 
 
-CONFIG_PATH = os.path.join(os.path.expanduser('~'), '.cozyfuse')
+CONFIG_FOLDER = os.path.join(os.path.expanduser('~'), '.cozyfuse')
+CONFIG_PATH = os.path.join(CONFIG_FOLDER, 'config.yaml')
 
 
 class NoConfigFound(Exception):
@@ -13,11 +16,14 @@ class NoConfigFound(Exception):
 class NoConfigFile(Exception):
     pass
 
+class DaemonAlreadyRunning(Exception):
+    pass
+
 
 def add_config(name, url, path, db_login, db_password):
     '''
-    Add to the config file (~/.cozyfuse) device named *name* with *url* and
-    *path* as parameters.
+    Add to the config file (~/.cozyfuse/config.yaml) device named *name* with
+    *url* and *path* as parameters.
     '''
 
     if name is None or url is None or path is None:
@@ -25,6 +31,9 @@ def add_config(name, url, path, db_login, db_password):
 
     else:
         # Create config file if it doesn't exist.
+        if not os.path.isdir(CONFIG_FOLDER):
+            os.mkdir(CONFIG_FOLDER)
+
         if not os.path.isfile(CONFIG_PATH):
             with file(CONFIG_PATH, 'a'):
                 os.utime(CONFIG_PATH, None)
@@ -44,8 +53,8 @@ def add_config(name, url, path, db_login, db_password):
 
 def remove_config(name):
     '''
-    Add to the config file (~/.cozyfuse) device named *name* with *url* and
-    *path* as parameters.
+    Add to the config file (~/.cozyfuse/config.yaml) device named *name* with
+    *url* and *path* as parameters.
     '''
 
     config = get_full_config()
@@ -128,13 +137,14 @@ def get_db_credentials(name):
 
 def get_full_config():
     '''
-    Get config (~/.cozyfuse) file as a dict.
+    Get config (~/.cozyfuse/config.yaml) file as a dict.
     '''
     try:
         stream = file(CONFIG_PATH, 'r')
     except IOError:
         print '[Config] Config file %s does not exist.' % CONFIG_PATH
-        raise NoConfigFile("Config file not found: ~/.cozyfuse doesn't exist")
+        raise NoConfigFile("Config file not found: ~/.cozyfuse/config.yaml" \
+                           " doesn't exist")
 
     config = load(stream, Loader=Loader)
     stream.close()
@@ -150,3 +160,25 @@ def clear():
     Delete configuration file.
     '''
     os.remove(CONFIG_PATH)
+
+
+def get_daemon_context(device_name, daemon_name):
+    '''
+    Return a proper daemon context:
+    * generate a
+    '''
+    folder = os.path.join(CONFIG_FOLDER, device_name)
+    pidfile = '%s.pid' % daemon_name
+
+    if not os.path.isdir(folder):
+        os.mkdir(folder)
+
+    if os.path.isfile(pidfile):
+        raise DaemonAlreadyRunning(
+            'Daemon %s for % is already running' % (daemon_name, device_name))
+
+    return daemon.DaemonContext(
+         working_directory=folder,
+         pidfile=lockfile.FileLock(
+             os.path.join(folder, pidfile)),
+     )
