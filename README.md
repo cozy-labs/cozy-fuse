@@ -23,7 +23,7 @@ On OSX:
 
 In a console run:
 
-   pip install git+git@github.com:mycozycloud/cozy-fuse-linux.git
+    pip install git+git@github.com:mycozycloud/cozy-fuse-linux.git
 
 
 Configure your replication:
