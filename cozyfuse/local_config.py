@@ -168,7 +168,8 @@ def clear():
 def get_daemon_context(device_name, daemon_name):
     '''
     Return a proper daemon context:
-    * generate a
+    * create a working directory for the daemon ~/.cozyfuse/device_name.
+    * save and lock this pid in this folder.
     '''
     folder = os.path.join(CONFIG_FOLDER, device_name)
     pidfile = '%s.pid' % daemon_name
