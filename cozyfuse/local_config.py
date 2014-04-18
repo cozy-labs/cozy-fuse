@@ -61,6 +61,8 @@ def remove_config(name):
     config.pop(name, None)
     output_file = file(CONFIG_PATH, 'w')
     dump(config, output_file, default_flow_style=False)
+    folder = os.path.join(CONFIG_FOLDER, name)
+    os.rmdir(folder)
     print '[Config] Configuration for %s removed' % name
 
 

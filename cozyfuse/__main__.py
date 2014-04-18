@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import sys
-import time
 
 import actions
 
@@ -12,8 +11,8 @@ DOC = '''
 manage your local configuration for Cozy syncing and FUSE mounting. Available
 actions are:
 
-   new_device: register a new device locally and remotely.
-   remove_device: remove given device locally and remotely.
+   add_cozy: register a new Cozy locally and register current device remotely.
+   remove_cozy: remove given device locally and remotely.
 
    mount: mount folder for given device.
    unmount: unmount folder for given device.
@@ -21,8 +20,8 @@ actions are:
    sync: synchronize given device with its remote configuration.
    kill_running_replications: terminate running replications.
 
-   reset: clear all data from local computer and remove all device remotely.
-   display_config: display configuration for all devices.
+   reset: clear all data from local computer and remove current device remotely.
+   display_config: display configuration for all cozy.
    kill_running_replications: ask to database to stop synchronization.
 
 '''
@@ -46,10 +45,10 @@ def main(argv=sys.argv):
         print('\nYou must specify an action argument\n')
         sys.exit(2)
 
-    elif args.action == 'new_device':
+    elif args.action == 'new_cozy':
         actions.configure_new_device(args.name, args.url, args.path)
 
-    elif args.action == 'remove_device':
+    elif args.action == 'remove_cozy':
         actions.remove_device(args.name)
 
     elif args.action == 'sync':
