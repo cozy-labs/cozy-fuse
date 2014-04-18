@@ -26,8 +26,8 @@ Configure your replication:
 
     # Configure once your cozy
     cozy-fuse new_cozy -u https://mycozy.cozycloud.cc -n online-cozy -p /home/me/mycozyfolder
-    cozy-fuse sync -n online -cozy # run it at each startup
-    cozy-fuse mount -n online -cozy # run it at each startup
+    cozy-fuse sync -n online-cozy # run it at each startup
+    cozy-fuse mount -n online-cozy # run it at each startup
 
 On Ubuntu you must add read rights on `/etc/fuse.conf`
 
