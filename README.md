@@ -15,6 +15,10 @@ On Debian like system you can simply add them via
 
     apt-get install couchdb fuse
 
+On OSX:
+* `brew install couchdb` (Homebrew) or `sudo port install couchdb && sudo port update couchdb && sudo port load couchdb` (MacPorts)
+* Download and install [OSXFuse](http://osxfuse.github.io/)
+
 ## Installation
 
 In a console run:
@@ -32,6 +36,8 @@ Configure your replication:
 On Ubuntu you must add read rights on `/etc/fuse.conf`
 
     chmod a+r /etc/fuse.conf
+
+On OSX, you must start CouchDB manually in a terminal, simply type `couchdb`
 
 
 ## Troubleshootings
