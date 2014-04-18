@@ -12,7 +12,8 @@ setup(
         "fuse-python>=0.2",
         "CouchDB>=0.9",
         "requests>=2.0.1",
-        "pyyaml"
+        "pyyaml",
+        "daemon"
     ],
     setup_requires=[],
     tests_require=[
