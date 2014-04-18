@@ -13,8 +13,10 @@ CONFIG_PATH = os.path.join(CONFIG_FOLDER, 'config.yaml')
 class NoConfigFound(Exception):
     pass
 
+
 class NoConfigFile(Exception):
     pass
+
 
 class DaemonAlreadyRunning(Exception):
     pass
@@ -73,7 +75,7 @@ def get_config(name):
     '''
     config = get_full_config()
 
-    if not config.has_key(name):
+    if name not in config:
         print '[Config] No device is registered for %s' % name
         raise NoConfigFound
 
@@ -84,9 +86,12 @@ def get_config(name):
 
 
 def get_device_config(name):
+    '''
+    Return device id and password on remote Cozy for given device name.
+    '''
     config = get_full_config()
 
-    if not config.has_key(name):
+    if name not in config:
         print '[Config] No device is registered for %s' % name
         raise NoConfigFound
 
@@ -109,7 +114,7 @@ def set_device_config(name, device_id, device_password):
     '''
     config = get_full_config()
 
-    if not config.has_key(name):
+    if name not in config:
         print '[Config] No device is registered for %s' % name
         raise NoConfigFound
 
@@ -128,11 +133,11 @@ def get_db_credentials(name):
     '''
     config = get_full_config()
 
-    if not config.has_key(name):
+    if name not in config:
         print '[Config] No device is registered for %s' % name
         raise NoConfigFound
     else:
-        db_login =config[name]['dblogin']
+        db_login = config[name]['dblogin']
         db_password = config[name]['dbpassword']
 
     return (db_login, db_password)
@@ -146,7 +151,7 @@ def get_full_config():
         stream = file(CONFIG_PATH, 'r')
     except IOError:
         print '[Config] Config file %s does not exist.' % CONFIG_PATH
-        raise NoConfigFile("Config file not found: ~/.cozyfuse/config.yaml" \
+        raise NoConfigFile("Config file not found: ~/.cozyfuse/config.yaml"
                            " doesn't exist")
 
     config = load(stream, Loader=Loader)
@@ -182,7 +187,6 @@ def get_daemon_context(device_name, daemon_name):
             'Daemon %s for % is already running' % (daemon_name, device_name))
 
     return daemon.DaemonContext(
-         working_directory=folder,
-         pidfile=lockfile.FileLock(
-             os.path.join(folder, pidfile)),
-     )
+        working_directory=folder,
+        pidfile=lockfile.FileLock(os.path.join(folder, pidfile)),
+    )

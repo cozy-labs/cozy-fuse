@@ -66,7 +66,6 @@ class CouchFSDocument(fuse.Fuse):
         self.passwordCozy = device['password']
         self.loginCozy = device['login']
 
-
     def get_dirs(self):
         """
         Get directories

@@ -116,19 +116,19 @@ def create_db_user(database, login, password, protocol="http"):
 
     headers = {'content-type': 'application/json'}
     data = {
-       "admins": {
-           "names": [login],
-           "roles": []
+        "admins": {
+            "names": [login],
+            "roles": []
         },
-       "members": {
-           "names": [login],
-           "roles": []
+        "members": {
+            "names": [login],
+            "roles": []
         },
     }
     requests.put('%s://localhost:5984/%s/_security' % (protocol, database),
-         data=json.dumps(data),
-         headers=headers,
-         verify=False)
+                 data=json.dumps(data),
+                 headers=headers,
+                 verify=False)
     print '[DB] Db user created'
 
 
@@ -141,7 +141,7 @@ def remove_db_user(database):
     rev = response.json().get("_rev", "")
 
     response = requests.delete(
-        'http://localhost:5984/_users/org.couchdb.user:%s?rev=%s' % \
+        'http://localhost:5984/_users/org.couchdb.user:%s?rev=%s' %
         (database, rev)
     )
     print '[DB] Db user %s deleted' % database
@@ -244,7 +244,6 @@ def init_database_views(database):
         print '[DB] Binary design document created'
     except ResourceConflict:
         print '[DB] Binary design document already exists'
-
 
 
 def init_device(database, url, path, device_pwd, device_id):

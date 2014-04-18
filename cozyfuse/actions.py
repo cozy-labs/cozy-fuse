@@ -19,7 +19,7 @@ def register_device_remotely(name):
     '''
     (url, path) = local_config.get_config(name)
     if url[-1:] == '/':
-         url = url[:-(len(name)+1)]
+        url = url[:-(len(name)+1)]
     password = getpass.getpass('Type your password:\n')
     (device_id, device_password) = remote.register_device(name, url,
                                                           path, password)
@@ -48,8 +48,8 @@ def init_replication(name):
     (db_login, db_password) = local_config.get_db_credentials(name)
 
     replication.replicate(
-       name, url, name, password, device_id, db_login, db_password,
-       to_local=True, continuous=False, deleted=False)
+        name, url, name, password, device_id, db_login, db_password,
+        to_local=True, continuous=False, deleted=False)
     print '[Replication] One shot replication is done'
 
     dbutils.init_device(name, url, path, password, device_id)
@@ -83,7 +83,7 @@ def kill_running_replications():
         }
         headers = {'content-type': 'application/json'}
         response = requests.post('http://localhost:5984/_replicate',
-                json.dumps(data), headers=headers)
+                                 json.dumps(data), headers=headers)
         if response.status_code == 200:
             print 'Replication %s stopped.' % data['replication_id']
         else:
@@ -137,7 +137,6 @@ def reset():
 
     except ResourceNotFound:
         print '[reset] No device found locally'
-
 
     # Remove local config file
     local_config.clear()

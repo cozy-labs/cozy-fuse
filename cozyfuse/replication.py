@@ -25,7 +25,8 @@ def replicate(database, url, device, device_password, device_id,
     * *seq*: sequence number from where to start the replication.
     '''
     url = url.split('/')
-    local = 'http://%s:%s@localhost:5984/%s' % (db_login, db_password, database)
+    local = 'http://%s:%s@localhost:5984/%s' % \
+            (db_login, db_password, database)
     remote = "https://%s:%s@%s/cozy" % (device, device_password, url[2])
     server = Server('http://localhost:5984/')
 
@@ -173,10 +174,9 @@ class BinaryReplication():
 
         except Exception:
             logging.exception(
-                'An error occured while replicating creation for:' \
+                'An error occured while replicating creation for:'
                 'doc %s' % line['doc']['_id']
             )
-
 
     def _delete_file(self, line):
         '''
