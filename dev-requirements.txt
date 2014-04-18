@@ -2,3 +2,4 @@ pytest
 requests
 couchdb
 daemon
+lockfile

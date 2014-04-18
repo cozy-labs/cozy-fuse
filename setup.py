@@ -13,6 +13,7 @@ setup(
         "CouchDB>=0.9",
         "requests>=2.0.1",
         "pyyaml",
+        "lockfile",
         "daemon"
     ],
     setup_requires=[],
