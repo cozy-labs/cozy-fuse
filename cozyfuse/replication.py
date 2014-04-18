@@ -7,6 +7,9 @@ import local_config
 
 from couchdb import Server
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 def replicate(database, url, device, device_password, device_id,
               db_login, db_password,
@@ -159,12 +162,14 @@ class BinaryReplication():
             doc = self.db[id_doc]
             if 'docType' in doc:
                 if doc['docType'] == 'File':
+                    logger.info("Creating file %s..." % doc["name"])
                     if 'binary' in doc:
                         binary = doc['binary']['file']
                         self.ids[id_doc] = [binary['id'], binary['rev']]
                         self._replicate_to_local([binary['id']])
                     elif not id_doc in self.ids:
                         self.ids[id_doc] = ["", ""]
+                    logger.info("File created: %s" % doc["name"])
 
         except Exception:
             logging.exception(
@@ -199,10 +204,12 @@ class BinaryReplication():
             doc = self.db[id_doc]
             if 'docType' in doc:
                 if doc['docType'] == 'File':
+                    logger.info("Updating file %s..." % doc["name"])
                     binary = doc['binary']['file']
                     if binary['rev'] != self.ids[id_doc][1]:
                         self.ids[id_doc] = [binary['id'], binary['rev']]
                         self._replicate_to_local([binary['id']])
+                    logger.info("File updated: %s" % doc["name"])
 
         except Exception:
             logging.exception(

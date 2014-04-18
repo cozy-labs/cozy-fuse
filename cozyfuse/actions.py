@@ -99,7 +99,6 @@ def remove_device(name):
     * Removing device from configuration file.
     * Destroying corresponding DB.
     '''
-
     (url, path) = local_config.get_config(name)
 
     couchmount.unmount(path)
@@ -223,4 +222,7 @@ def sync(name):
     print '[Replication] Start local to remote replication'
 
     print '[Replication] Run binary synchronization...'
-    replication.BinaryReplication(name)
+    try:
+        replication.BinaryReplication(name)
+    except KeyboardInterrupt:
+        print '[Replication] Synchronization interrupted.'
