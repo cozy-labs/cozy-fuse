@@ -6,8 +6,11 @@ sys.path.append('..')
 
 import cozyfuse.local_config as local_config
 
-local_config.CONFIG_PATH = \
+local_config.CONFIG_FOLDER = \
     os.path.join(os.path.expanduser('~'), '.cozyfuse-test')
+
+local_config.CONFIG_PATH = \
+    os.path.join(local_config.CONFIG_FOLDER, 'config.yaml')
 
 
 def touch(filename, times=None):
@@ -17,6 +20,11 @@ def touch(filename, times=None):
 
 @pytest.fixture(scope="module")
 def config_file(request):
+    if not os.path.isdir(local_config.CONFIG_FOLDER):
+        os.mkdir(local_config.CONFIG_FOLDER)
+
+    if os.path.isfile(local_config.CONFIG_PATH):
+        os.remove(local_config.CONFIG_PATH)
     touch(local_config.CONFIG_PATH)
 
 

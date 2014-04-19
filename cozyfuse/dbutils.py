@@ -11,6 +11,18 @@ from couchdb import Server
 from couchdb.http import PreconditionFailed, ResourceConflict
 
 
+def create_db(database):
+    server = Server('http://localhost:5984/')
+    try:
+        db = server.create(database)
+        print '[DB] Database %s created' % database
+    except PreconditionFailed:
+        db = server[database]
+        print '[DB] Database %s already exists.' % database
+
+    return db
+
+
 def get_db(database):
     '''
     Get or create given database from/in CouchDB.
@@ -184,15 +196,7 @@ def init_database_views(database):
         * Create database
         * Initialize folder, file, binary and device views
     '''
-    server = Server('http://localhost:5984/')
-
-    # Create database
-    try:
-        db = server.create(database)
-        print '[DB] Database %s created' % database
-    except PreconditionFailed:
-        db = server[database]
-        print '[DB] Database %s already exists.' % database
+    db = create_db(database)
 
     try:
         init_database_view('Folder', db)
