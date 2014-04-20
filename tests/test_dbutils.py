@@ -33,22 +33,6 @@ def config_db(request):
     local_config.add_config(name, url, path, db_login, db_password)
 
 
-def test_get_db(config_db):
-    db = dbutils.get_db(TESTDB)
-    assert db is not None
-
-
-def test_get_db_and_server():
-    (db, server) = dbutils.get_db_and_server(TESTDB)
-    assert db is not None
-    assert server is not None
-    assert db.info()["db_name"] == TESTDB
-
-
-def _create_device_view():
-    pass
-
-
 def test_get_random_key():
     key1 = dbutils.get_random_key()
     key2 = dbutils.get_random_key()
@@ -66,6 +50,18 @@ def test_create_db_user():
     assert response.status_code == 200
 
 
+def test_get_db(config_db):
+    db = dbutils.get_db(TESTDB)
+    assert db is not None
+
+
+def test_get_db_and_server():
+    (db, server) = dbutils.get_db_and_server(TESTDB)
+    assert db is not None
+    assert server is not None
+    assert db.info()["db_name"] == TESTDB
+
+
 def test_init_dabase_view():
     db = dbutils.get_db(TESTDB)
     dbutils.init_database_view('MyDocType', db)
@@ -75,8 +71,22 @@ def test_init_dabase_view():
     assert 'byFullPath' in view['views']
 
 
-def init_dabase_views():
-    pass
+def test_init_dabase_views():
+    db = dbutils.get_db(TESTDB)
+    dbutils.init_database_views(TESTDB)
+    view = db["_design/file"]
+    assert 'all' in view['views']
+    assert 'byFolder' in view['views']
+    assert 'byFullPath' in view['views']
+    view = db["_design/folder"]
+    assert 'all' in view['views']
+    assert 'byFolder' in view['views']
+    assert 'byFullPath' in view['views']
+    view = db["_design/device"]
+    assert 'all' in view['views']
+    assert 'byUrl' in view['views']
+    view = db["_design/binary"]
+    assert 'all' in view['views']
 
 
 def get_device():
@@ -92,6 +102,7 @@ def get_device():
 
 def init_db():
     pass
+    # Not tested yet, because  I'm not sure it won't changed.
 
 
 

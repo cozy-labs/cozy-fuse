@@ -26,6 +26,7 @@ fuse.fuse_python_api = (0, 2)
 logger = logging.getLogger(__name__)
 local_config.configure_logger(logger)
 
+
 class CouchStat(fuse.Stat):
     '''
     Default file descriptor.

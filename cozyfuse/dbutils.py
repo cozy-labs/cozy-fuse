@@ -58,6 +58,7 @@ def init_db(database):
     '''
     Create all required views to make Cozy FUSE working properly.
     '''
+    create_db(database)
     init_database_views(database)
     password = get_random_key()
     create_db_user(database, database, password)
@@ -72,23 +73,6 @@ def remove_db(database):
     server = Server('http://localhost:5984/')
     server.delete(database)
     logger.info('[DB] Local database %s removed' % database)
-
-
-def _create_device_view(db):
-    '''
-    Create CouchDB device design document to allow requesting on devices.
-    '''
-    db = get_db()
-    if '_design/device' not in db:
-        db["_design/device"] = {
-            "views": {
-                "all": {
-                    "map": "function (doc) {\n" +
-                           "    if (doc.docType === \"Device\") {\n" +
-                           "        emit(doc.login, doc) \n    }\n}"
-                }
-            }
-        }
 
 
 def get_device(name):
@@ -200,7 +184,7 @@ def init_database_views(database):
         * Create database
         * Initialize folder, file, binary and device views
     '''
-    db = create_db(database)
+    db = get_db(database)
 
     try:
         init_database_view('Folder', db)
