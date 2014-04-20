@@ -26,13 +26,15 @@ def create_db(database):
     return db
 
 
-def get_db(database):
+def get_db(database, credentials=True):
     '''
     Get or create given database from/in CouchDB.
     '''
     try:
         server = Server('http://localhost:5984/')
-        server.resource.credentials = local_config.get_db_credentials(database)
+        if credentials:
+            server.resource.credentials = \
+                local_config.get_db_credentials(database)
         return server[database]
     except Exception:
         logging.exception('[DB] Cannot connect to the database')
@@ -184,7 +186,7 @@ def init_database_views(database):
         * Create database
         * Initialize folder, file, binary and device views
     '''
-    db = get_db(database)
+    db = get_db(database, credentials=False)
 
     try:
         init_database_view('Folder', db)

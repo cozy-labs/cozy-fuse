@@ -44,7 +44,7 @@ def main(argv=sys.argv):
     elif args.action == 'configure':
         actions.configure_new_device(args.name, args.url, args.path)
 
-    elif args.action == 'remove_device':
+    elif args.action == 'remove_configuration':
         actions.remove_device(args.name)
 
     elif args.action == 'sync':
