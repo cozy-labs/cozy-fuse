@@ -9,6 +9,7 @@
 # you should have received as part of this distribution.
 
 import os
+import platform
 import errno
 import fuse
 import stat
@@ -468,7 +469,13 @@ def _path_split(path):
 
 
 def unmount(path):
-    subprocess.call(["fusermount", "-u", path])
+    if platform.system() == "Darwin":
+        command = ["umount", path]
+    else:
+        command = ["fusermount", "-u", path]
+
+    subprocess.call(command)
+    print 'Folder %s unmounted' % path
 
 
 def mount(name, path):
