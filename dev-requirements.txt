@@ -3,3 +3,4 @@ requests
 couchdb
 daemon
 lockfile
+httpretty
