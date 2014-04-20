@@ -1,7 +1,8 @@
 # [Cozy](http://cozy.io) Fuse Linux
 
-This programs allows you to mount file from your Cozy Files application in your
-usual file system.
+This programs allows you to mount files from your Cozy Files application in
+your file system. This way you can browse and manage them with your favorite
+file browser.
 
 
 ## Requirements
@@ -25,7 +26,7 @@ In a console run:
 Configure your replication:
 
     # Configure once your cozy
-    cozy-fuse new_cozy -u https://mycozy.cozycloud.cc -n online-cozy -p /home/me/mycozyfolder
+    cozy-fuse configure -u https://mycozy.cozycloud.cc -n online-cozy -p /home/me/mycozyfolder
     cozy-fuse sync -n online -cozy # run it at each startup
     cozy-fuse mount -n online -cozy # run it at each startup
 
