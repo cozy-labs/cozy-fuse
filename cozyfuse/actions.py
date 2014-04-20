@@ -1,15 +1,14 @@
 import getpass
 import requests
 import json
+import sys
 
 import couchmount
 import replication
 import local_config
 import remote
-
-from couchdb.http import ResourceNotFound
-
 import dbutils
+
 from couchdb import Server
 
 
@@ -20,11 +19,11 @@ def register_device_remotely(name):
     (url, path) = local_config.get_config(name)
     if url[-1:] == '/':
         url = url[:-(len(name)+1)]
-    password = getpass.getpass('Type your password:\n')
+    password = getpass.getpass('Type your Cozy password to register your '
+                               'device remotely:\n')
     (device_id, device_password) = remote.register_device(name, url,
                                                           path, password)
     local_config.set_device_config(name, device_id, device_password)
-    print '[Remote] Device %s registered' % name
 
 
 def remove_device_remotely(name):
@@ -33,9 +32,9 @@ def remove_device_remotely(name):
     '''
     (url, path) = local_config.get_config(name)
     (device_id, password) = local_config.get_device_config(name)
-    password = getpass.getpass('Type your Cozy password:\n')
+    password = getpass.getpass('Type your Cozy password to remove your '
+                               'device remotely:\n')
     remote.remove_device(url, device_id, password)
-    print '[Remote] %s removed' % name
 
 
 def init_replication(name):
@@ -50,23 +49,15 @@ def init_replication(name):
     replication.replicate(
         name, url, name, password, device_id, db_login, db_password,
         to_local=True, continuous=False, deleted=False)
-    print '[Replication] One shot replication is done'
-
     dbutils.init_device(name, url, path, password, device_id)
-    print '[Replication] Device initialized'
-
     replication.replicate(
         name, url, name, password, device_id, db_login, db_password,
         to_local=False, continuous=False)
-    print '[Replication] Add missing data to remote database.'
 
     replication.replicate(name, url, name, password, device_id,
                           db_login, db_password, to_local=True)
-    print '[Replication] Start remote to local replication'
-
     replication.replicate(name, url, name, password, device_id,
                           db_login, db_password)
-    print '[Replication] Start local to remote replication'
 
 
 def kill_running_replications():
@@ -102,16 +93,14 @@ def remove_device(name):
     (url, path) = local_config.get_config(name)
 
     couchmount.unmount(path)
-    print '[mount] %s unmounted' % path
     remove_device_remotely(name)
-    print '[remote] Device %s unregistered' % name
 
     # Remove database
     dbutils.remove_db(name)
     dbutils.remove_db_user(name)
-    print '[db] Local database deleted for %s' % name
 
     local_config.remove_config(name)
+    print 'Configuration %s successfully removed.' % name
 
 
 def reset():
@@ -128,19 +117,15 @@ def reset():
         config = local_config.get_full_config()
     except local_config.NoConfigFile:
         print 'No config file found, cannot reset anything'
-        return True
+        sys.exit(1)
 
-    try:
-        for name in config.keys():
-            print '[reset] Clearing %s' % name
-            remove_device(name)
-
-    except ResourceNotFound:
-        print '[reset] No device found locally'
+    for name in config.keys():
+        print '- Clearing %s' % name
+        remove_device(name)
 
     # Remove local config file
     local_config.clear()
-    print '[reset] Configuraton file deleted'
+    print '[reset] Configuration files deleted, folder unmounted.'
 
 
 def mount_folder(name):
@@ -153,7 +138,6 @@ def mount_folder(name):
         context = local_config.get_daemon_context(name, 'mount')
         with context:
             couchmount.mount(name, path)
-        print '[mount] Folder %s mounted' % path
     except KeyboardInterrupt:
         unmount_folder(name)
 
@@ -165,7 +149,6 @@ def unmount_folder(name, path=None):
     if path is None:
         (url, path) = local_config.get_config(name)
     couchmount.unmount(path)
-    print '[mount] Folder %s unmounted' % path
 
 
 def display_config():
@@ -185,13 +168,18 @@ def unregister_device(name):
     Remove device from local configuration, destroy corresponding database
     and unregister it from remote Cozy.
     '''
-    print '[Device] %s removed' % name
     (url, path) = local_config.get_config(name)
     (device_id, device_password) = local_config.get_device_config(name)
+
+    print 'Cozy connection removal for %s.' % name
     local_config.remove(name)
+    print '- Local configuration removed.'
     dbutils.remove_db(name)
-    password = getpass.getpass('Type your password:\n')
+    print '- Local files removed.'
+    password = getpass.getpass('Please type the password of your Cozy:\n')
     remote.remove_device(url, device_id, password)
+    print '- Remote configuration removed.'
+    print 'Removal succeeded, everything clean!' % name
 
 
 def configure_new_device(name, url, path):
@@ -201,12 +189,23 @@ def configure_new_device(name, url, path):
     * Register device on remote Cozy defined by *url*.
     * Init replications.
     '''
+    print 'Welcome to Cozy Fuse!'
+    print ''
+    print 'Let\'s go configuring your new Cozy connection...'
     (db_login, db_password) = dbutils.init_db(name)
     local_config.add_config(name, url, path, db_login, db_password)
+    print 'Step 1 succeeded: Local configuration created'
     register_device_remotely(name)
+    print 'Step 2 succeeded: Device registered remotely.'
+    print ''
+    print 'Now running the first time replication (it could be very long)...'
     init_replication(name)
-    print 'New device %s configured.' % name
-    print 'Use cozy-fuse mount -n %s to see your files.' % name
+    print 'Step 3 succeeded: Metadata copied.'
+    print ''
+    print 'Cozy configuration %s succeeded!' % name
+    print 'Now type cozy-fuse sync-n %s to keep your data synchronized.' % name
+    print 'And type cozy-fuse mount -n %s to see your files in your ' \
+          'filesystem.' % name
 
 
 def sync(name):
@@ -219,16 +218,14 @@ def sync(name):
 
     replication.replicate(name, url, name, device_password, device_id,
                           db_login, db_password, to_local=True)
-    print '[Replication] Start remote to local replication'
-
     replication.replicate(name, url, name, device_password, device_id,
                           db_login, db_password)
-    print '[Replication] Start local to remote replication'
 
-    print '[Replication] Run binary synchronization...'
+    print 'Continuous replications started.'
+    print 'Running daemon for binary synchronization...'
     try:
         context = local_config.get_daemon_context(name, 'sync')
         with context:
             replication.BinaryReplication(name)
     except KeyboardInterrupt:
-        print '[Replication] Synchronization interrupted.'
+        print ' Binary Synchronization interrupted.'

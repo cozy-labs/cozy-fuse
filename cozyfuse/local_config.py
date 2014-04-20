@@ -1,6 +1,7 @@
 import os
 import daemon
 import lockfile
+import logging
 
 from yaml import load, dump
 from yaml import Loader
@@ -8,6 +9,11 @@ from yaml import Loader
 
 CONFIG_FOLDER = os.path.join(os.path.expanduser('~'), '.cozyfuse')
 CONFIG_PATH = os.path.join(CONFIG_FOLDER, 'config.yaml')
+
+HDLR = logging.FileHandler(os.path.join(CONFIG_FOLDER, 'cozyfuse.log'))
+HDLR.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+
+logger = logging.getLogger(__name__)
 
 
 class NoConfigFound(Exception):
@@ -50,7 +56,7 @@ def add_config(name, url, path, db_login, db_password):
 
         output_file = file(CONFIG_PATH, 'w')
         dump(config, output_file, default_flow_style=False)
-        print '[Config] Configuration for %s saved' % name
+        logger.info('[Config] Configuration for %s saved' % name)
 
 
 def remove_config(name):
@@ -66,7 +72,7 @@ def remove_config(name):
     folder = os.path.join(CONFIG_FOLDER, name)
     if os.path.isdir(folder):
         os.rmdir(folder)
-    print '[Config] Configuration for %s removed' % name
+    logger.info('[Config] Configuration for %s removed' % name)
 
 
 def get_config(name):
@@ -76,8 +82,7 @@ def get_config(name):
     config = get_full_config()
 
     if name not in config:
-        print '[Config] No device is registered for %s' % name
-        raise NoConfigFound
+        raise NoConfigFound('[Config] No device is registered for %s' % name)
 
     else:
         url = config[name]['url']
@@ -92,8 +97,7 @@ def get_device_config(name):
     config = get_full_config()
 
     if name not in config:
-        print '[Config] No device is registered for %s' % name
-        raise NoConfigFound
+        raise NoConfigFound('[Config] No device is registered for %s' % name)
 
     else:
         try:
@@ -115,8 +119,7 @@ def set_device_config(name, device_id, device_password):
     config = get_full_config()
 
     if name not in config:
-        print '[Config] No device is registered for %s' % name
-        raise NoConfigFound
+        raise NoConfigFound('[Config] No device is registered for %s' % name)
 
     else:
         config[name]['deviceid'] = device_id
@@ -124,7 +127,7 @@ def set_device_config(name, device_id, device_password):
 
         output_file = file(CONFIG_PATH, 'w')
         dump(config, output_file, default_flow_style=False)
-        print '[Config] Remote data added to config file'
+        logger.info('[Config] Remote data added to config file')
 
 
 def get_db_credentials(name):
@@ -134,8 +137,7 @@ def get_db_credentials(name):
     config = get_full_config()
 
     if name not in config:
-        print '[Config] No device is registered for %s' % name
-        raise NoConfigFound
+        raise NoConfigFound('[Config] No device is registered for %s' % name)
     else:
         db_login = config[name]['dblogin']
         db_password = config[name]['dbpassword']
@@ -150,9 +152,8 @@ def get_full_config():
     try:
         stream = file(CONFIG_PATH, 'r')
     except IOError:
-        print '[Config] Config file %s does not exist.' % CONFIG_PATH
-        raise NoConfigFile("Config file not found: ~/.cozyfuse/config.yaml"
-                           " doesn't exist")
+        msg = '[Config] Config file %s does not exist.' % CONFIG_PATH
+        raise NoConfigFile(msg)
 
     config = load(stream, Loader=Loader)
     stream.close()
@@ -190,3 +191,9 @@ def get_daemon_context(device_name, daemon_name):
         working_directory=folder,
         pidfile=lockfile.FileLock(os.path.join(folder, pidfile)),
     )
+
+
+def configure_logger(log):
+    log.addHandler(HDLR)
+    log.setLevel(logging.INFO)
+    log.propagate = False

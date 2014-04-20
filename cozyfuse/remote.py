@@ -1,5 +1,18 @@
+import logging
 import requests
-import json
+
+import local_config
+
+logger = logging.getLogger(__name__)
+local_config.configure_logger(logger)
+
+
+class WrongPassword(Exception):
+    pass
+
+
+class UnreachableCozy(Exception):
+    pass
 
 
 def register_device(name, url, path, password):
@@ -8,7 +21,6 @@ def register_device(name, url, path, password):
     Once device is registered device id and password are stored in a local
     configuration file.
     '''
-
     data = {'login': name, 'folder': path}
     response = requests.post(
         '%s/device/' % url,
@@ -17,15 +29,25 @@ def register_device(name, url, path, password):
         verify=False
     )
 
-    if response.status_code == 403:
-        print '[Remote config] Registering device failed for ' \
-              '%s (wrong password).' % name
+    if response.status_code == 502:
+        msg = '[Remote config] Registering device failed for ' \
+              '%s (your Cozy is unreachable).' % name
+        logger.error(msg)
+        raise UnreachableCozy(msg)
+
+    data = response.json()
+    if ('error' in data):
+        msg = '[Remote config] Registering device failed for ' \
+              '%s (%s).' % (name, data['error'])
+        logger.error(msg)
+        raise WrongPassword(msg)
+
         return (None, None)
     else:
-        data = json.loads(response.content)
         device_id = str(data["id"])
         device_password = str(data["password"])
-        print '[Remote config] Registering device succeeded for %s.' % name
+        logger.info(
+            '[Remote config] Registering device succeeded for %s.' % name)
         return (device_id, device_password)
 
 
@@ -35,3 +57,4 @@ def remove_device(url, device_id, password):
     '''
     requests.delete('%s/device/%s/' % (url, device_id),
                     auth=('owner', password), verify=False)
+    logger.info('[Remote config] Device deletion succeeded for %s.' % url)

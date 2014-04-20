@@ -7,8 +7,8 @@ import local_config
 
 from couchdb import Server
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+local_config.configure_logger(logger)
 
 
 def replicate(database, url, device, device_password, device_id,
@@ -48,6 +48,19 @@ def replicate(database, url, device, device_password, device_id,
     else:
         server.replicate(source, target, continuous=continuous,
                          filter=filter_name, since_seq=seq)
+
+    if continuous and to_local:
+        logger.info(
+            '[Replication] Continous replication to local database started.')
+    elif continuous and not to_local:
+        logger.info(
+            '[Replication] Continous replication to remote Cozy started.')
+    elif not continuous and to_local:
+        logger.info(
+            '[Replication] One shot replication to local database started.')
+    elif not continuous and not to_local:
+        logger.info(
+            '[Replication] One shot replication to remote Cozy started.')
 
 
 def get_progression():

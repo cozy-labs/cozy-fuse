@@ -14,13 +14,17 @@ import errno
 import fuse
 import stat
 import subprocess
+import logging
 
 import dbutils
+import local_config
 
 from couchdb import ResourceNotFound
 
 fuse.fuse_python_api = (0, 2)
 
+logger = logging.getLogger(__name__)
+local_config.configure_logger(logger)
 
 class CouchStat(fuse.Stat):
     '''
@@ -475,9 +479,10 @@ def unmount(path):
         command = ["fusermount", "-u", path]
 
     subprocess.call(command)
-    print 'Folder %s unmounted' % path
+    logger.info('Folder %s unmounted' % path)
 
 
 def mount(name, path):
     fs = CouchFSDocument(name, path, 'http://localhost:5984/%s' % name)
+    logger.info('Attempt to mount %s' % path)
     fs.main()

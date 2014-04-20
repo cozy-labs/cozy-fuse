@@ -10,15 +10,18 @@ import local_config
 from couchdb import Server
 from couchdb.http import PreconditionFailed, ResourceConflict
 
+logger = logging.getLogger(__name__)
+local_config.configure_logger(logger)
+
 
 def create_db(database):
     server = Server('http://localhost:5984/')
     try:
         db = server.create(database)
-        print '[DB] Database %s created' % database
+        logger.info('[DB] Database %s created' % database)
     except PreconditionFailed:
         db = server[database]
-        print '[DB] Database %s already exists.' % database
+        logger.info('[DB] Database %s already exists.' % database)
 
     return db
 
@@ -58,7 +61,7 @@ def init_db(database):
     init_database_views(database)
     password = get_random_key()
     create_db_user(database, database, password)
-    print '[DB] Local database initialized'
+    logger.info('[DB] Local database %s initialized' % database)
     return (database, password)
 
 
@@ -68,6 +71,7 @@ def remove_db(database):
     '''
     server = Server('http://localhost:5984/')
     server.delete(database)
+    logger.info('[DB] Local database %s removed' % database)
 
 
 def _create_device_view(db):
@@ -141,7 +145,7 @@ def create_db_user(database, login, password, protocol="http"):
                  data=json.dumps(data),
                  headers=headers,
                  verify=False)
-    print '[DB] Db user created'
+    logger.info('[DB] Db user created')
 
 
 def remove_db_user(database):
@@ -156,7 +160,7 @@ def remove_db_user(database):
         'http://localhost:5984/_users/org.couchdb.user:%s?rev=%s' %
         (database, rev)
     )
-    print '[DB] Db user %s deleted' % database
+    logger.info('[DB] Db user %s deleted' % database)
 
 
 def init_database_view(docType, db):
@@ -200,15 +204,15 @@ def init_database_views(database):
 
     try:
         init_database_view('Folder', db)
-        print '[DB] Folder design document created'
+        logger.info('[DB] Folder design document created')
     except ResourceConflict:
-        print '[DB] Folder design document already exists'
+        logger.warn('[DB] Folder design document already exists')
 
     try:
         init_database_view('File', db)
-        print '[DB] File design document created'
+        logger.info('[DB] File design document created')
     except ResourceConflict:
-        print '[DB] File design document already exists'
+        logger.warn('[DB] File design document already exists')
 
     try:
         db["_design/device"] = {
@@ -229,9 +233,9 @@ def init_database_views(database):
                 }
             }
         }
-        print '[DB] Device design document created'
+        logger.info('[DB] Device design document created')
     except ResourceConflict:
-        print '[DB] Device design document already exists'
+        logger.warn('[DB] Device design document already exists')
 
     try:
         db["_design/binary"] = {
@@ -245,9 +249,9 @@ def init_database_views(database):
                 }
             }
         }
-        print '[DB] Binary design document created'
+        logger.info('[DB] Binary design document created')
     except ResourceConflict:
-        print '[DB] Binary design document already exists'
+        logger.warn('[DB] Binary design document already exists')
 
 
 def init_device(database, url, path, device_pwd, device_id):
@@ -299,7 +303,8 @@ def init_device(database, url, path, device_pwd, device_id):
 
     try:
         db.save(doc)
+        logger.info('[DB] Device filter created for device %s' % database)
     except ResourceConflict:
-        print '[DB] Device filter document already exists'
+        logger.warn('[DB] Device filter document already exists')
 
     return False
