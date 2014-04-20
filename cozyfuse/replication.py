@@ -161,15 +161,20 @@ class BinaryReplication():
         try:
             id_doc = line['doc']['_id']
             doc = self.db[id_doc]
+
             if 'docType' in doc:
+
                 if doc['docType'] == 'File':
                     logger.info("Creating file %s..." % doc["name"])
+
                     if 'binary' in doc:
                         binary = doc['binary']['file']
                         self.ids[id_doc] = [binary['id'], binary['rev']]
                         self._replicate_to_local([binary['id']])
+
                     elif not id_doc in self.ids:
                         self.ids[id_doc] = ["", ""]
+
                     logger.info("File created: %s" % doc["name"])
 
         except Exception:
@@ -184,8 +189,10 @@ class BinaryReplication():
         '''
         try:
             id_doc = self.ids.get(line['doc']['_id'])
+
             if id_doc is not None:
                 binary = self.ids[line['doc']['_id']][0]
+
                 if self.db[binary]:
                     self.db.delete(self.db[binary])
                     self._replicate_to_local([binary])
@@ -202,10 +209,13 @@ class BinaryReplication():
         try:
             id_doc = line['doc']['_id']
             doc = self.db[id_doc]
+
             if 'docType' in doc:
+
                 if doc['docType'] == 'File':
                     logger.info("Updating file %s..." % doc["name"])
                     binary = doc['binary']['file']
+
                     if binary['rev'] != self.ids[id_doc][1]:
                         self.ids[id_doc] = [binary['id'], binary['rev']]
                         self._replicate_to_local([binary['id']])

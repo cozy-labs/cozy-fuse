@@ -58,11 +58,11 @@ def remove_config(name):
     Add to the config file (~/.cozyfuse/config.yaml) device named *name* with
     *url* and *path* as parameters.
     '''
-
     config = get_full_config()
     config.pop(name, None)
     output_file = file(CONFIG_PATH, 'w')
     dump(config, output_file, default_flow_style=False)
+
     folder = os.path.join(CONFIG_FOLDER, name)
     if os.path.isdir(folder):
         os.rmdir(folder)

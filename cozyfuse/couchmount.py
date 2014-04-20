@@ -13,7 +13,6 @@ import errno
 import fuse
 import stat
 import subprocess
-import time
 
 import dbutils
 
@@ -69,12 +68,13 @@ class CouchFSDocument(fuse.Fuse):
     def get_dirs(self):
         """
         Get directories
-        TODO: cache result
         """
+        # TODO: cache result
         dirs = {}
 
         for folder in self.db.view("folder/all"):
-            folder_path = folder.value["path"] + '/' + folder.value["name"]
+            folder_path = os.path.join(folder.value["path"],
+                                       folder.value["name"])
             if len(folder_path) != 0:
                 folder_path = folder_path[1:]
 
@@ -105,7 +105,7 @@ class CouchFSDocument(fuse.Fuse):
         path = _normalize_path(path)
         for directory in '.', '..':  # why ?
             yield fuse.Direntry(directory)
-        for name in self.get_dirs().get(path, []):
+        for name in self.get_dirs().get(path, set()):
             yield fuse.Direntry(name.encode('utf-8'))
 
     def getattr(self, path):
@@ -167,10 +167,12 @@ class CouchFSDocument(fuse.Fuse):
                 dirname, filename = u'', parts[0]
             else:
                 dirname, filename = parts
+
             if filename in self.get_dirs()[dirname]:
                 return 0
-            print 'Something went wrong while opening %s' % path
-            return -errno.ENOENT
+            else:
+                print 'Something went wrong while opening %s' % path
+                return -errno.ENOENT
 
         except (KeyError, ResourceNotFound):
             print 'Something went wrong while opening %s' % path
@@ -183,6 +185,7 @@ class CouchFSDocument(fuse.Fuse):
             size {integer}: size of file part to read
             offset {integer}: beginning of file part to read
         """
+        # TODO: do not load the file for each chunk.
         try:
             for res in self.db.view("file/byFullPath", key=path):
                 res = res.value
@@ -219,6 +222,7 @@ class CouchFSDocument(fuse.Fuse):
             buf {buffer}: data to write
             offset {integer}: beginning of file part to read
         """
+        # TODO rewrite that one.
         try:
             for res in self.db.view("file/byFullPath", key=path):
                 self.currentFile = self.currentFile + buf
@@ -246,6 +250,7 @@ class CouchFSDocument(fuse.Fuse):
                 res = res.value
                 binary_id = res["binary"]["file"]["id"]
 
+                # TODO put binary copy in a micro thread?
                 self.db.put_attachment(self.db[binary_id],
                                        self.currentFile,
                                        filename="file")
@@ -253,6 +258,7 @@ class CouchFSDocument(fuse.Fuse):
                 binary = self.db[binary_id]
                 res['binary']['file']['rev'] = binary['_rev']
                 self.db.save(res)
+                # TODO put replication in a micro thread?
                 self._replicate_from_local([binary_id])
 
             self.currentFile = ""
@@ -272,6 +278,7 @@ class CouchFSDocument(fuse.Fuse):
 
         new_binary = {"docType": "Binary"}
         binary_id = self.db.create(new_binary)
+        # TODO put binary copy in a micro thread?
         self.db.put_attachment(self.db[binary_id], '', filename="file")
 
         rev = self.db[binary_id]["_rev"]
@@ -288,12 +295,12 @@ class CouchFSDocument(fuse.Fuse):
         }
         self.db.create(newFile)
 
+        # TODO put replication in a micro thread?
         self._replicate_from_local([binary_id])
 
     def unlink(self, path):
         """
         Remove file from database.
-            path {string}: file path
         """
         path = _normalize_path(path)
         parts = path.rsplit(u'/', 1)
@@ -307,21 +314,18 @@ class CouchFSDocument(fuse.Fuse):
             binary_id = file_doc["binary"]["file"]["id"]
             self.db.delete(self.db[binary_id])
             self.db.delete(self.db[file_doc["_id"]])
+            # TODO put replication in a micro thread?
             self._replicate_from_local([binary_id])
 
     def truncate(self, path, size):
-        """
-        Change size of a file
-            path {string}: file path
-            size {integer}: new file size
+        """ TODO: look if something should be done there.
+        Change size of a file.
         """
         return 0
 
     def utime(self, path, times):
-        """
+        """ TODO: look if something should be done there.
         Change the access and/or modification times of a file
-            path {string}: file path
-            times: times of file
         """
         return 0
 
@@ -350,14 +354,14 @@ class CouchFSDocument(fuse.Fuse):
             folder = res.value
             self.db.delete(self.db[folder['_id']])
 
+            # TODO Delete subfolders and sub files
             return 0
 
     def rename(self, pathfrom, pathto):
         """
         Rename file and subfiles (if it's a folder) in database.
-            pathfrom {string}: old path
-            pathto {string}: new path
         """
+        # TODO Make sure that everything is replicated.
         for doc in self.db.view("file/byFullPath", key=pathfrom):
             doc = doc.value
             (file_path, name) = _path_split(pathto)
@@ -372,31 +376,28 @@ class CouchFSDocument(fuse.Fuse):
 
             # Rename all subfiles
             for res in self.db.view("file/byFolder", key=pathfrom):
-                pathfrom = res.value['path'] + '/' + res.value['name']
-                pathto = file_path + '/' + name + '/' + res.value['name']
+                pathfrom = os.path.join(res.value['path'], res.value['name'])
+                pathto = os.path.join(file_path, name, res.value['name'])
                 self.rename(pathfrom, pathto)
 
             for res in self.db.view("folder/byFolder", key=pathfrom):
-                pathfrom = res.value['path'] + '/' + res.value['name']
-                pathto = file_path + '/' + name + '/' + res.value['name']
+                pathfrom = os.path.join(res.value['path'], res.value['name'])
+                pathto = os.path.join(file_path, name, res.value['name'])
                 self.rename(pathfrom, pathto)
 
             self.db.save(doc)
             return 0
 
     def fsync(self, path, isfsyncfile):
-        """
-        Synchronize file contents
-            path {string}: file path
-            isfsyncfile {boolean}: display if files are synchronized
-        """
-
+        """ TODO: look if something should be done there. """
         return 0
 
     def chmod(self, path, mode):
+        """ TODO: look if something should be done there. """
         return 0
 
     def chown(self, path, uid, gid):
+        """ TODO: look if something should be done there. """
         return 0
 
     def statfs(self):
@@ -436,6 +437,7 @@ class CouchFSDocument(fuse.Fuse):
         '''
         Replicate file modifications to remote Cozy.
         '''
+        # TODO: use replication module instead.
         (username, password) = ('', '')
         source = 'http://%s:%s@localhost:5984/%s' % (username,
                                                      password,
@@ -465,36 +467,7 @@ def _path_split(path):
     return (folder_path, name)
 
 
-def _get_folder(db):
-    '''
-    Get the folder to sync.
-    '''
-    for device in db.view("device/all"):
-        return device.value['folder']
-    return None
-
-
-def _recover_path():
-    db = dbutils.get_db()
-    res = db.view("device/all")
-    if not res:
-        time.sleep(5)
-        return _recover_path()
-    else:
-        try:
-            for device in res:
-                if not device.value["folder"]:
-                    time.sleep(5)
-                    return _recover_path()
-                else:
-                    return device.value['folder']
-        except ResourceNotFound:
-            print 'No connected device found'
-
-
 def unmount(path):
-    if path is None:
-        path = _recover_path()
     subprocess.call(["fusermount", "-u", path])
 
 
