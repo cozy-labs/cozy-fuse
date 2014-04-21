@@ -14,7 +14,7 @@ setup(
         "requests>=2.0.1",
         "pyyaml",
         "lockfile",
-        "daemon"
+        "python-daemon"
     ],
     setup_requires=[],
     tests_require=[

@@ -24,8 +24,15 @@ On OSX:
 
 In a console run:
 
-    pip install git+git@github.com:mycozycloud/cozy-fuse-linux.git
+    pip install git+https://@github.com/mycozycloud/cozy-fuse-linux.git
 
+On OSX, if this error occured: `error: command 'cc' failed with exit status 1`, try again with the following command:
+
+    ARCHFLAGS=-Wno-error=unused-command-line-argument-hard-error-in-future pip install git+https://github.com/mycozycloud/cozy-fuse-linux.git
+
+On OSX, you must start couchdb in a terminal or daemonize it by yourself:
+
+    couchdb
 
 Configure your connection with the remote Cozy:
 
