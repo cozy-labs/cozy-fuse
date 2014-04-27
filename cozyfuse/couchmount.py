@@ -16,11 +16,10 @@ import stat
 import subprocess
 import logging
 import datetime
+import calendar
 
 import dbutils
 import local_config
-
-from couchdb import ResourceNotFound
 
 fuse.fuse_python_api = (0, 2)
 
@@ -32,6 +31,16 @@ logger = logging.getLogger(__name__)
 logger.addHandler(HDLR)
 logger.setLevel(logging.INFO)
 #local_config.configure_logger(logger)
+
+
+def get_date(ctime):
+    ctime = ctime[0:24]
+    try:
+        date = datetime.datetime.strptime(ctime, "%a %b %d %H:%M:%S %Y")
+    except ValueError:
+        date = datetime.datetime.strptime(ctime, "%a %b %d %Y %H:%M:%S")
+    return calendar.timegm(date.utctimetuple())
+
 
 
 class CouchStat(fuse.Stat):
@@ -179,6 +188,11 @@ class CouchFSDocument(fuse.Fuse):
                     if folder is not None:
                         st.st_mode = stat.S_IFDIR | 0775
                         st.st_nlink = 2
+                        if 'lastModification' in folder:
+                            st.st_atime = get_date(folder['lastModification'])
+                            st.st_ctime = st.st_atime
+                            st.st_mtime = st.st_atime
+
                         self.descriptors[path] = st
                         return st
 
@@ -192,6 +206,11 @@ class CouchFSDocument(fuse.Fuse):
                             # TODO: if size is not set, get the binary
                             # and save the information.
                             st.st_size = file_doc.get('size', 4096)
+                            if 'lastModification' in file_doc:
+                                st.st_atime = \
+                                    get_date(file_doc['lastModification'])
+                                st.st_ctime = st.st_atime
+                                st.st_mtime = st.st_atime
                             self.descriptors[path] = st
                             return st
 
@@ -229,8 +248,8 @@ class CouchFSDocument(fuse.Fuse):
                 print 'Something went wrong while opening %s' % path
                 return -errno.ENOENT
 
-        except (KeyError, ResourceNotFound):
-            print 'Something went wrong while opening %s' % path
+        except Exception, e:
+            logger.exception(e)
             return -errno.ENOENT
 
     def read(self, path, size, offset):
@@ -241,7 +260,7 @@ class CouchFSDocument(fuse.Fuse):
             offset {integer}: beginning of file part to read
         """
         # TODO: do not load the file for each chunk.
-        # Save it in a cache maybe?.
+        # Save it in a cache file maybe?.
         try:
             file_doc = dbutils.get_file(self.db, path)
             binary_id = file_doc["binary"]["file"]["id"]
@@ -264,11 +283,9 @@ class CouchFSDocument(fuse.Fuse):
 
                 return buf
 
-        except (KeyError, ResourceNotFound):
-            pass
-
-        print 'Something went wrong while reading %s' % path
-        return -errno.ENOENT
+        except Exception, e:
+            logger.exception(e)
+            return -errno.ENOENT
 
     def write(self, path, buf):
         """
@@ -289,24 +306,31 @@ class CouchFSDocument(fuse.Fuse):
             to an open file: all file descriptors are closed and
             all memory mappings are unmapped.
         """
-        if self.currentFile != "":
+        try:
+            if self.currentFile != "":
 
-            file_doc = dbutils.get_file(self.db, path)
-            binary_id = file_doc["binary"]["file"]["id"]
+                file_doc = dbutils.get_file(self.db, path)
+                binary_id = file_doc["binary"]["file"]["id"]
 
-            self.db.put_attachment(self.db[binary_id],
-                                   self.currentFile,
-                                   filename="file")
+                # TODO put binary copy in a micro thread?
+                self.db.put_attachment(self.db[binary_id],
+                                       self.currentFile,
+                                       filename="file")
 
-            binary = self.db[binary_id]
-            file_doc['binary']['file']['rev'] = binary['_rev']
-            file_doc['lastModification'] = datetime.datetime.now()
-            file_doc['size'] = len(self.currentFile)
-            self.db.save(file_doc)
+                binary = self.db[binary_id]
+                file_doc['binary']['file']['rev'] = binary['_rev']
+                file_doc['lastModification'] = datetime.datetime.now().ctime()
+                file_doc['size'] = len(self.currentFile)
+                self.db.save(file_doc)
 
-            # TODO check if it waits that synchronisation is finished.
-            self._replicate_from_local([binary_id])
-            self.currentFile = ""
+                # TODO check if it waits that synchronisation is finished.
+                self._replicate_from_local([binary_id])
+                self.currentFile = ""
+
+        except Exception, e:
+            logger.exception(e)
+            return -errno.ENOENT
+
 
     def mknod(self, path, mode, dev):
         """
@@ -319,33 +343,37 @@ class CouchFSDocument(fuse.Fuse):
                  major and minor numbers of the newly created device special
                  file
         """
-        (file_path, name) = _path_split(path)
+        try:
+            (file_path, name) = _path_split(path)
 
-        new_binary = {"docType": "Binary"}
-        binary_id = self.db.create(new_binary)
-        # TODO put binary copy in a micro thread?
-        self.db.put_attachment(self.db[binary_id], '', filename="file")
+            new_binary = {"docType": "Binary"}
+            binary_id = self.db.create(new_binary)
+            # TODO put binary copy in a micro thread?
+            self.db.put_attachment(self.db[binary_id], '', filename="file")
 
-        rev = self.db[binary_id]["_rev"]
-        newFile = {
-            "name": name,
-            "path": file_path,
-            "binary": {
-                "file": {
-                    "id": binary_id,
-                    "rev": rev
-                }
-            },
-            "docType": "File",
-            'creationDate': datetime.datetime.now(),
-            'lastModification': datetime.datetime.now(),
-        }
-        self.db.create(newFile)
+            rev = self.db[binary_id]["_rev"]
+            newFile = {
+                "name": name,
+                "path": file_path,
+                "binary": {
+                    "file": {
+                        "id": binary_id,
+                        "rev": rev
+                    }
+                },
+                "docType": "File",
+                'creationDate': datetime.datetime.now().ctime(),
+                'lastModification': datetime.datetime.now().ctime(),
+            }
+            self.db.create(newFile)
 
-        # TODO put replication in a micro thread?
-        self._replicate_from_local([binary_id])
+            # TODO put replication in a micro thread?
+            self._replicate_from_local([binary_id])
 
-        # TODO update get_dirs
+            # TODO update get_dirs
+        except Exception, e:
+            logger.exception(e)
+            return -errno.ENOENT
 
     def unlink(self, path):
         """
@@ -391,7 +419,9 @@ class CouchFSDocument(fuse.Fuse):
         self.db.create({
             "name": name,
             "path": folder_path,
-            "docType": "Folder"
+            "docType": "Folder",
+            'creationDate': datetime.datetime.now().ctime(),
+            'lastModification': datetime.datetime.now().ctime(),
         })
         # TODO update self.dirs
 
@@ -440,6 +470,7 @@ class CouchFSDocument(fuse.Fuse):
             self.db.save(doc)
 
             # TODO update get_dirs
+            # TODO update last modification date
             return 0
 
     def fsync(self, path, isfsyncfile):
