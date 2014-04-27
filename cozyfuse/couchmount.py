@@ -15,6 +15,7 @@ import fuse
 import stat
 import subprocess
 import logging
+import datetime
 
 import dbutils
 import local_config
@@ -23,8 +24,14 @@ from couchdb import ResourceNotFound
 
 fuse.fuse_python_api = (0, 2)
 
+CONFIG_FOLDER = os.path.join(os.path.expanduser('~'), '.cozyfuse')
+HDLR = logging.FileHandler(os.path.join(CONFIG_FOLDER, 'cozyfuse.log'))
+HDLR.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+
 logger = logging.getLogger(__name__)
-local_config.configure_logger(logger)
+logger.addHandler(HDLR)
+logger.setLevel(logging.INFO)
+#local_config.configure_logger(logger)
 
 
 class CouchStat(fuse.Stat):
@@ -48,12 +55,13 @@ class CouchFSDocument(fuse.Fuse):
     '''
     Fuse implementation behavior: handles synchronisation with database when a
     change occurs or when users want to access to his/her file system.
-    '''
+   '''
 
     def __init__(self, database, mountpoint, uri=None, *args, **kwargs):
         '''
         Configure file system, database and store remote Cozy informations.
         '''
+        logger.info('Mounting folder...')
 
         # Configure fuse
         fuse.Fuse.__init__(self, *args, **kwargs)
@@ -65,43 +73,73 @@ class CouchFSDocument(fuse.Fuse):
         self.database = database
         (self.db, self.server) = dbutils.get_db_and_server(database)
 
-        # Configure Cozy
+        ## Configure Cozy
         device = dbutils.get_device(database)
         self.urlCozy = device['url']
         self.passwordCozy = device['password']
         self.loginCozy = device['login']
 
+        # Configure replication urls.
+        (self.db_username, self.db_password) = \
+            local_config.get_db_credentials(database)
+        string_data = (
+            self.db_username,
+            self.db_password,
+            self.database
+        )
+        self.rep_source = 'http://%s:%s@localhost:5984/%s' % string_data
+        string_data = (
+            self.loginCozy,
+            self.passwordCozy,
+            self.urlCozy.split('/')[2]
+        )
+        self.rep_target = "https://%s:%s@%s/cozy" % string_data
+        self.dirs = {}
+        self.descriptors = {}
+
+
     def get_dirs(self):
         """
         Get directories
         """
-        # TODO: cache result
-        dirs = {}
+        try:
+            if len(self.dirs.keys()) > 0:
+                logger.info(self.dirs)
+                return self.dirs
+            else:
+                self.dirs = {}
 
-        for folder in self.db.view("folder/all"):
-            folder_path = os.path.join(folder.value["path"],
-                                       folder.value["name"])
-            if len(folder_path) != 0:
-                folder_path = folder_path[1:]
+                folders = dbutils.get_folders(self.db)
+                for folder in folders:
+                    folder_path = os.path.join(folder.value["path"],
+                                               folder.value["name"])
+                    if len(folder_path) != 0:
+                        folder_path = folder_path[0:]
 
-            parents = [u'']
-            for name in folder_path.split('/'):
-                if name != '':
-                    filenames = dirs.setdefault(u'/'.join(parents[1:]), set())
-                    filenames.add(name)
-                    parents.append(name)
-                    dirs.setdefault(u'' + folder_path, set())
+                    parents = [u'']
+                    for name in folder_path.split('/'):
+                        if name != '':
+                            filenames = self.dirs.setdefault(u'/'.join(parents[1:]), set())
+                            filenames.add(name)
+                            parents.append(name)
+                            self.dirs.setdefault(u'' + folder_path, set())
 
-        for file_doc in self.db.view("file/all"):
-            file_path = file_doc.value["path"] + '/' + file_doc.value["name"]
-            parents = [u'']
-            for name in file_path.split('/'):
-                if name != '':
-                    filenames = dirs.setdefault(u'/'.join(parents[1:]), set())
-                    filenames.add(name)
-                    parents.append(name)
+                files = dbutils.get_files(self.db)
+                for file_doc in files:
+                    file_path = file_doc.value["path"] + '/' + file_doc.value["name"]
+                    parents = [u'']
+                    for name in file_path.split('/'):
+                        if name != '':
+                            filenames = self.dirs.setdefault(u'/'.join(parents[1:]), set())
+                            filenames.add(name)
+                            parents.append(name)
 
-        return dirs
+                logger.info(self.dirs)
+            return self.dirs
+
+        except Exception, e:
+            logger.exception(e)
+            return {}
 
     def readdir(self, path, offset):
         """
@@ -109,54 +147,65 @@ class CouchFSDocument(fuse.Fuse):
         it arrives.
         """
         path = _normalize_path(path)
-        for directory in '.', '..':  # why ?
+        for directory in '.', '..':  # this two folders are conventional in Unis system.
             yield fuse.Direntry(directory)
         for name in self.get_dirs().get(path, set()):
             yield fuse.Direntry(name.encode('utf-8'))
 
     def getattr(self, path):
         """
-        Return file descriptor for given_path
+        Return file descriptor for given_path. Useful for 'ls -la' command like.
         """
-        exist = False
-        st = CouchStat()
         try:
 
-            # Path is root
-            if path is "/":
-                exist = True
-                st.st_mode = stat.S_IFDIR | 0775
-                st.st_nlink = 2
+            # Result is cached.
+            if path in self.descriptors:
+                return self.descriptors[path]
 
-            # Folder exists in DB.
-            for res in self.db.view("folder/byFullPath", key=path):
-                exist = True
-                st.st_mode = stat.S_IFDIR | 0775
-                st.st_nlink = 2
+            else:
+                st = CouchStat()
 
-            if not exist:
-                # File exists in DB.
-                for res in self.db.view("file/byFullPath", key=path):
-                    exist = True
-                    res = res.value
+                # Path is root
+                if path is "/":
+                    st.st_mode = stat.S_IFDIR | 0775
+                    st.st_nlink = 2
+                    self.descriptors[path] = st
+                    return st
 
-                    binary_id = res["binary"]["file"]["id"]
-                    binary_attachment = \
-                        self.db[binary_id].get('_attachments', {})
-                    data = binary_attachment["file"]
-                    st.st_mode = stat.S_IFREG | 0664
-                    st.st_nlink = 1
-                    st.st_size = data['length']
+                else:
+                    # Or path is a folder
+                    folder = dbutils.get_folder(self.db, path)
 
-                # File does not exist.
-                if not exist:
-                    print 'File does not exist: %s' % path
-                    return -errno.ENOENT
+                    if folder is not None:
+                        st.st_mode = stat.S_IFDIR | 0775
+                        st.st_nlink = 2
+                        self.descriptors[path] = st
+                        return st
 
-            return st
+                    else:
+                        # Or path is a file
+                        file_doc = dbutils.get_file(self.db, path)
 
-        except (KeyError, ResourceNotFound):
-            print 'Something went wrong getting infos for %s' % path
+                        if file_doc is not None:
+                            st.st_mode = stat.S_IFREG | 0664
+                            st.st_nlink = 1
+                            # TODO: if size is not set, get the binary
+                            # and save the information.
+                            st.st_size = file_doc.get('size', 4096)
+                            self.descriptors[path] = st
+                            return st
+
+                        else:
+                            print 'File does not exist: %s' % path
+                            return -errno.ENOENT
+                            return st
+
+        #except (KeyError, ResourceNotFound):
+            #logging.error('Something went wrong getting infos for %s' % path)
+            #return -errno.ENOENT
+
+        except Exception, e:
+            logger.exception(e)
             return -errno.ENOENT
 
     def open(self, path, flags):
@@ -192,28 +241,28 @@ class CouchFSDocument(fuse.Fuse):
             offset {integer}: beginning of file part to read
         """
         # TODO: do not load the file for each chunk.
+        # Save it in a cache maybe?.
         try:
-            for res in self.db.view("file/byFullPath", key=path):
-                res = res.value
-                binary_id = res["binary"]["file"]["id"]
-                binary_attachment = self.db.get_attachment(binary_id, "file")
+            file_doc = dbutils.get_file(self.db, path)
+            binary_id = file_doc["binary"]["file"]["id"]
+            binary_attachment = self.db.get_attachment(binary_id, "file")
 
-                if binary_attachment is None:
-                    return ''
+            if binary_attachment is None:
+                return ''
+
+            else:
+                content = binary_attachment.read()
+                content_length = len(content)
+
+                if offset < content_length:
+                    if offset + size > content_length:
+                        size = content_length - offset
+                    buf = content[offset:offset+size]
 
                 else:
-                    content = binary_attachment.read()
-                    content_length = len(content)
+                    buf = ''
 
-                    if offset < content_length:
-                        if offset + size > content_length:
-                            size = content_length - offset
-                        buf = content[offset:offset+size]
-
-                    else:
-                        buf = ''
-
-                    return buf
+                return buf
 
         except (KeyError, ResourceNotFound):
             pass
@@ -221,24 +270,14 @@ class CouchFSDocument(fuse.Fuse):
         print 'Something went wrong while reading %s' % path
         return -errno.ENOENT
 
-    def write(self, path, buf, offset):
+    def write(self, path, buf):
         """
         Write data in file located at given path.
             path {string}: file path
             buf {buffer}: data to write
-            offset {integer}: beginning of file part to read
         """
-        # TODO rewrite that one.
-        try:
-            for res in self.db.view("file/byFullPath", key=path):
-                self.currentFile = self.currentFile + buf
-                return len(buf)
-
-        except (KeyError, ResourceNotFound):
-            pass
-
-        print 'Something went wrong while writing %s' % path
-        return -errno.ENOENT
+        self.currentFile = self.currentFile + buf
+        return len(buf)
 
     def release(self, path, fuse_file_info):
         """
@@ -252,21 +291,21 @@ class CouchFSDocument(fuse.Fuse):
         """
         if self.currentFile != "":
 
-            for res in self.db.view("file/byFullPath", key=path):
-                res = res.value
-                binary_id = res["binary"]["file"]["id"]
+            file_doc = dbutils.get_file(self.db, path)
+            binary_id = file_doc["binary"]["file"]["id"]
 
-                # TODO put binary copy in a micro thread?
-                self.db.put_attachment(self.db[binary_id],
-                                       self.currentFile,
-                                       filename="file")
+            self.db.put_attachment(self.db[binary_id],
+                                   self.currentFile,
+                                   filename="file")
 
-                binary = self.db[binary_id]
-                res['binary']['file']['rev'] = binary['_rev']
-                self.db.save(res)
-                # TODO put replication in a micro thread?
-                self._replicate_from_local([binary_id])
+            binary = self.db[binary_id]
+            file_doc['binary']['file']['rev'] = binary['_rev']
+            file_doc['lastModification'] = datetime.datetime.now()
+            file_doc['size'] = len(self.currentFile)
+            self.db.save(file_doc)
 
+            # TODO check if it waits that synchronisation is finished.
+            self._replicate_from_local([binary_id])
             self.currentFile = ""
 
     def mknod(self, path, mode, dev):
@@ -297,12 +336,16 @@ class CouchFSDocument(fuse.Fuse):
                     "rev": rev
                 }
             },
-            "docType": "File"
+            "docType": "File",
+            'creationDate': datetime.datetime.now(),
+            'lastModification': datetime.datetime.now(),
         }
         self.db.create(newFile)
 
         # TODO put replication in a micro thread?
         self._replicate_from_local([binary_id])
+
+        # TODO update get_dirs
 
     def unlink(self, path):
         """
@@ -322,6 +365,7 @@ class CouchFSDocument(fuse.Fuse):
             self.db.delete(self.db[file_doc["_id"]])
             # TODO put replication in a micro thread?
             self._replicate_from_local([binary_id])
+            # TODO update get_dirs
 
     def truncate(self, path, size):
         """ TODO: look if something should be done there.
@@ -343,11 +387,13 @@ class CouchFSDocument(fuse.Fuse):
         """
         (folder_path, name) = _path_split(path)
 
+        logger.info('create new dir %s at path' % (name, path))
         self.db.create({
             "name": name,
             "path": folder_path,
             "docType": "Folder"
         })
+        # TODO update self.dirs
 
         return 0
 
@@ -360,14 +406,14 @@ class CouchFSDocument(fuse.Fuse):
             folder = res.value
             self.db.delete(self.db[folder['_id']])
 
-            # TODO Delete subfolders and sub files
+            # TODO update self.dirs
             return 0
 
     def rename(self, pathfrom, pathto):
         """
         Rename file and subfiles (if it's a folder) in database.
         """
-        # TODO Make sure that everything is replicated.
+
         for doc in self.db.view("file/byFullPath", key=pathfrom):
             doc = doc.value
             (file_path, name) = _path_split(pathto)
@@ -392,6 +438,8 @@ class CouchFSDocument(fuse.Fuse):
                 self.rename(pathfrom, pathto)
 
             self.db.save(doc)
+
+            # TODO update get_dirs
             return 0
 
     def fsync(self, path, isfsyncfile):
@@ -443,16 +491,11 @@ class CouchFSDocument(fuse.Fuse):
         '''
         Replicate file modifications to remote Cozy.
         '''
-        # TODO: use replication module instead.
-        (username, password) = ('', '')
-        source = 'http://%s:%s@localhost:5984/%s' % (username,
-                                                     password,
-                                                     self.database)
-        url = self.urlCozy.split('/')
-        target = "https://%s:%s@%s/cozy" % (self.loginCozy,
-                                            self.passwordCozy,
-                                            url[2])
-        self.rep = self.server.replicate(source, target, doc_ids=ids)
+        self.rep = self.server.replicate(
+            self.rep_source,
+            self.rep_target,
+            doc_ids=ids
+        )
 
 
 def _normalize_path(path):
@@ -484,6 +527,7 @@ def unmount(path):
 
 
 def mount(name, path):
-    fs = CouchFSDocument(name, path, 'http://localhost:5984/%s' % name)
     logger.info('Attempt to mount %s' % path)
+    fs = CouchFSDocument(name, path, 'http://localhost:5984/%s' % name)
+    fs.multithreaded = 0
     fs.main()
