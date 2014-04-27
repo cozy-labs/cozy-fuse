@@ -7,6 +7,10 @@ logger = logging.getLogger(__name__)
 local_config.configure_logger(logger)
 
 
+class DeviceAlreadyRegistered(Exception):
+    pass
+
+
 class WrongPassword(Exception):
     pass
 
@@ -40,7 +44,11 @@ def register_device(name, url, path, password):
         msg = '[Remote config] Registering device failed for ' \
               '%s (%s).' % (name, data['error'])
         logger.error(msg)
-        raise WrongPassword(msg)
+
+        if 'name' in msg:
+            raise DeviceAlreadyRegistered(msg)
+        else:
+            raise WrongPassword(msg)
 
         return (None, None)
     else:
