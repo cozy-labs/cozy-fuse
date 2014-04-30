@@ -214,7 +214,7 @@ class CouchFSDocument(fuse.Fuse):
 
                 # Path is root
                 if path is "/":
-                    t.st_mode = stat.S_IFDIR | 0775
+                    st.st_mode = stat.S_IFDIR | 0775
                     st.st_nlink = 2
                     self.descriptors[path] = st
                     return st
