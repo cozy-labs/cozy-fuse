@@ -12,7 +12,7 @@ manage your local configuration for Cozy syncing and FUSE mounting. Available
 actions are:
 
    configure: configure a new Cozy locally and register current device remotely.
-   sync: synchronize current device with its remote configuration.
+   sync: synchronize current device with its remote Cozy.
    reset: clear all data from local computer and remove current device remotely.
 
    mount: mount folder for current device.
