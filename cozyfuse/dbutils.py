@@ -97,6 +97,9 @@ def get_files(db):
 
 
 def get_folder(db, path):
+    if len(path) > 0 and path[0] != '/':
+        path = '/' + path
+
     try:
         folder = list(db.view("folder/byFullPath", key=path))[0].value
     except IndexError:
@@ -105,6 +108,8 @@ def get_folder(db, path):
 
 
 def get_file(db, path):
+    if len(path) > 0 and path[0] != '/':
+        path = '/' + path
     try:
         file_doc = list(db.view("file/byFullPath", key=path))[0].value
     except IndexError:
@@ -195,10 +200,10 @@ def init_database_view(docType, db):
             },
             "byFullPath": {
                 "map": """function (doc) {
-                              if (doc.docType === \"%s\") {
-                                  emit(doc.path + '/' + doc.name, doc)
-                              }
-                          }""" % docType
+                  if (doc.docType === \"%s\") {
+                      emit(doc.path + '/' + doc.name, doc);
+                    }
+                  }""" % docType
             }
         }
     }
@@ -276,15 +281,14 @@ def init_device(database, url, path, device_pwd, device_id):
     device['change'] = 0
     device['url'] = url
     device['folder'] = path
-    device['configuration'] = ["File", "Folder"]
+    device['configuration'] = ["File", "Folder", "Binary"]
     db.save(device)
 
     # Generate filter
-    conditions = ""
+    conditions = "(doc.docType && ("
     for docType in device["configuration"]:
-        conditions += '(doc.docType &&' \
-                      ' doc.docType === "%s") ||' % docType
-    conditions = conditions[0:-3]
+        conditions += 'doc.docType === "%s" || ' % docType
+    conditions = conditions[0:-3] + '))'
 
     first_filter = """function(doc, req) {
         if(doc._deleted || %s) {
