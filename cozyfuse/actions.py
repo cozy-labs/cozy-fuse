@@ -46,19 +46,25 @@ def init_replication(name):
     (device_id, password) = local_config.get_device_config(name)
     (db_login, db_password) = local_config.get_db_credentials(name)
 
+    print 'Replication from remote to local...'
     replication.replicate(
         name, url, name, password, device_id, db_login, db_password,
         to_local=True, continuous=False, deleted=False)
+    print 'Init device...'
     dbutils.init_device(name, url, path, password, device_id)
+    print 'Replication from local to remote...'
     replication.replicate(
         name, url, name, password, device_id, db_login, db_password,
         to_local=False, continuous=False)
 
+    print 'Continuous replication from remote to local setting...'
     replication.replicate(name, url, name, password, device_id,
-                          db_login, db_password, to_local=True)
+                         db_login, db_password, to_local=True)
+
+    print 'Continuous replication from local to remote setting...'
     replication.replicate(name, url, name, password, device_id,
                           db_login, db_password)
-
+    print 'Metadata replications are done.'
 
 def kill_running_replications():
     '''
@@ -135,9 +141,7 @@ def mount_folder(name):
     try:
         (url, path) = local_config.get_config(name)
         couchmount.unmount(path)
-        context = local_config.get_daemon_context(name, 'mount')
-        with context:
-            couchmount.mount(name, path)
+        couchmount.mount(name, path)
     except KeyboardInterrupt:
         unmount_folder(name)
 
