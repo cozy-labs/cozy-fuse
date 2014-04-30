@@ -13,16 +13,30 @@ local_config.configure_logger(logger)
 
 def replicate(database, url, device, device_password, device_id,
               db_login, db_password,
-              to_local=False, continuous=True, deleted=True, seq=None):
+              to_local=False, continuous=True, deleted=True, seq=None,
+              ids=None):
     '''
     Run a replication from a CouchDB database to a remote Cozy instance.
 
     Args:
 
+    * *database*: Name of the local datbase.
+    * *url*: Url of the remote Cozy.
+    * *device*: name of the current device (that should be regitered to the
+      remote Cozy).
+    * *device_password*: password of the current device to connect to the
+      Remote Cozy.
+    * *device_id*: ID of the device.
+    * *db_login*:
+    * *db_password*:
+
+    Optionl args:
+
     * *to_local*: if True, data go from remote Cozy to local Couch.
     * *continuous*: if False, it's a single shot replication.
     * *deleted*: if false deleted documents are not replicated.
     * *seq*: sequence number from where to start the replication.
+    * *ids*: Document ids to replicate.
     '''
     url = url.split('/')
     local = 'http://%s:%s@localhost:5984/%s' % \
@@ -42,9 +56,11 @@ def replicate(database, url, device, device_password, device_id,
     else:
         filter_name = "%s/filterDocType" % device_id
 
-    if seq is None:
+    if seq is None and ids is None:
         server.replicate(source, target, continuous=continuous,
                          filter=filter_name)
+    elif seq is None:
+        server.replicate(source, target, continuous=continuous, ids=ids)
     else:
         server.replicate(source, target, continuous=continuous,
                          filter=filter_name, since_seq=seq)
