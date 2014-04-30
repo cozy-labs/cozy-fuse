@@ -88,6 +88,30 @@ def get_device(name):
     return device
 
 
+def get_folders(db):
+    return db.view("folder/all")
+
+
+def get_files(db):
+    return db.view("file/all")
+
+
+def get_folder(db, path):
+    try:
+        folder = list(db.view("folder/byFullPath", key=path))[0].value
+    except IndexError:
+        folder = None
+    return folder
+
+
+def get_file(db, path):
+    try:
+        file_doc = list(db.view("file/byFullPath", key=path))[0].value
+    except IndexError:
+        file_doc = None
+    return file_doc
+
+
 def get_random_key():
     '''
     Generate a random key of 20 chars. The first character is not a number
