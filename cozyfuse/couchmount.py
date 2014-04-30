@@ -76,7 +76,7 @@ class CouchFSDocument(fuse.Fuse):
         fuse.Fuse.__init__(self, *args, **kwargs)
         self.fuse_args.mountpoint = mountpoint
         self.fuse_args.add('allow_other')
-        self.currentFile = ""
+        self.currentFile = None
 
         # Configure database
         self.database = database
@@ -103,9 +103,38 @@ class CouchFSDocument(fuse.Fuse):
             self.urlCozy.split('/')[2]
         )
         self.rep_target = "https://%s:%s@%s/cozy" % string_data
+
+        # init cache
         self.dirs = {}
         self.descriptors = {}
+        self.writeBuffers = {}
 
+    def add_file_to_dirs(self, path, name):
+        '''
+        Add file reference to directory cache.
+        '''
+        logger.info("path add: " + path)
+        path = _normalize_path(path)
+        filenames = self.dirs.setdefault(path, set())
+        filenames.add(name)
+        self.getattr(os.path.join(path, name))
+
+    def remove_file_from_dirs(self, path, name):
+        '''
+        Remove file reference from directory cache.
+        '''
+        logger.info("path remove: " + path)
+        if len(path) > 0:
+            file_path = os.path.join(path, name)
+        else:
+            file_path = name
+        path = _normalize_path(path)
+        file_path = _normalize_path(file_path)
+
+        filenames = self.get_dirs().setdefault(path, set())
+        if name in filenames:
+            filenames.remove(name)
+        self.descriptors.pop(file_path, None)
 
     def get_dirs(self):
         """
@@ -113,7 +142,6 @@ class CouchFSDocument(fuse.Fuse):
         """
         try:
             if len(self.dirs.keys()) > 0:
-                logger.info(self.dirs)
                 return self.dirs
             else:
                 self.dirs = {}
@@ -128,22 +156,31 @@ class CouchFSDocument(fuse.Fuse):
                     parents = [u'']
                     for name in folder_path.split('/'):
                         if name != '':
-                            filenames = self.dirs.setdefault(u'/'.join(parents[1:]), set())
+                            path = u'/'.join(parents[1:])
+
+                            path = _normalize_path(path)
+                            filenames = self.dirs.setdefault(path, set())
                             filenames.add(name)
                             parents.append(name)
-                            self.dirs.setdefault(u'' + folder_path, set())
+
+                    folder_path = _normalize_path(folder_path)
+                    self.dirs.setdefault(u'' + folder_path, set())
 
                 files = dbutils.get_files(self.db)
                 for file_doc in files:
-                    file_path = file_doc.value["path"] + '/' + file_doc.value["name"]
+                    file_path = os.path.join(
+                        file_doc.value["path"], file_doc.value["name"])
                     parents = [u'']
                     for name in file_path.split('/'):
                         if name != '':
-                            filenames = self.dirs.setdefault(u'/'.join(parents[1:]), set())
+                            path = u'/'.join(parents[1:])
+
+                            path = _normalize_path(path)
+                            filenames = self.dirs.setdefault(path, set())
                             filenames.add(name)
                             parents.append(name)
 
-                logger.info(self.dirs)
+            logger.info(self.dirs)
             return self.dirs
 
         except Exception, e:
@@ -156,7 +193,7 @@ class CouchFSDocument(fuse.Fuse):
         it arrives.
         """
         path = _normalize_path(path)
-        for directory in '.', '..':  # this two folders are conventional in Unis system.
+        for directory in '.', '..':  # this two folders are conventional in Unix system.
             yield fuse.Direntry(directory)
         for name in self.get_dirs().get(path, set()):
             yield fuse.Direntry(name.encode('utf-8'))
@@ -166,6 +203,7 @@ class CouchFSDocument(fuse.Fuse):
         Return file descriptor for given_path. Useful for 'ls -la' command like.
         """
         try:
+            logger.debug('getattr %s' % path)
 
             # Result is cached.
             if path in self.descriptors:
@@ -176,7 +214,7 @@ class CouchFSDocument(fuse.Fuse):
 
                 # Path is root
                 if path is "/":
-                    st.st_mode = stat.S_IFDIR | 0775
+                    t.st_mode = stat.S_IFDIR | 0775
                     st.st_nlink = 2
                     self.descriptors[path] = st
                     return st
@@ -219,10 +257,6 @@ class CouchFSDocument(fuse.Fuse):
                             return -errno.ENOENT
                             return st
 
-        #except (KeyError, ResourceNotFound):
-            #logging.error('Something went wrong getting infos for %s' % path)
-            #return -errno.ENOENT
-
         except Exception, e:
             logger.exception(e)
             return -errno.ENOENT
@@ -236,17 +270,21 @@ class CouchFSDocument(fuse.Fuse):
         path = _normalize_path(path)
 
         try:
+            logger.info('open %s' % path)
             parts = path.rsplit(u'/', 1)
             if len(parts) == 1:
                 dirname, filename = u'', parts[0]
             else:
                 dirname, filename = parts
 
+            logger.info(dirname)
+            logger.info(filename)
+            logger.info(self.dirs)
             if filename in self.get_dirs()[dirname]:
-                return 0
+                logger.info('%s found' % filename)
             else:
-                print 'Something went wrong while opening %s' % path
-                return -errno.ENOENT
+                logger.error('File not found %s' % path)
+            return 0
 
         except Exception, e:
             logger.exception(e)
@@ -262,16 +300,21 @@ class CouchFSDocument(fuse.Fuse):
         # TODO: do not load the file for each chunk.
         # Save it in a cache file maybe?.
         try:
+            path = _normalize_path(path)
+            logger.info('read %s' % path)
             file_doc = dbutils.get_file(self.db, path)
             binary_id = file_doc["binary"]["file"]["id"]
             binary_attachment = self.db.get_attachment(binary_id, "file")
+            logger.info(binary_id)
 
             if binary_attachment is None:
+                logger.info('No attachment for this binary')
                 return ''
 
             else:
                 content = binary_attachment.read()
                 content_length = len(content)
+                logger.info('Return file content')
 
                 if offset < content_length:
                     if offset + size > content_length:
@@ -280,6 +323,7 @@ class CouchFSDocument(fuse.Fuse):
 
                 else:
                     buf = ''
+                    logger.info('Empty file content')
 
                 return buf
 
@@ -287,13 +331,17 @@ class CouchFSDocument(fuse.Fuse):
             logger.exception(e)
             return -errno.ENOENT
 
-    def write(self, path, buf):
+    def write(self, path, buf, offset):
         """
         Write data in file located at given path.
             path {string}: file path
             buf {buffer}: data to write
         """
-        self.currentFile = self.currentFile + buf
+        path = _normalize_path(path)
+        logger.info('write %s' % path)
+        if path not in self.writeBuffers:
+            self.writeBuffers[path] = ''
+        self.writeBuffers[path] = self.writeBuffers[path] + buf
         return len(buf)
 
     def release(self, path, fuse_file_info):
@@ -307,30 +355,30 @@ class CouchFSDocument(fuse.Fuse):
             all memory mappings are unmapped.
         """
         try:
-            if self.currentFile != "":
+            path = _normalize_path(path)
+            logger.info('release file %s' % path)
+            file_doc = dbutils.get_file(self.db, path)
+            binary_id = file_doc["binary"]["file"]["id"]
 
-                file_doc = dbutils.get_file(self.db, path)
-                binary_id = file_doc["binary"]["file"]["id"]
-
-                # TODO put binary copy in a micro thread?
+            if path in self.writeBuffers:
+                data = self.writeBuffers[path]
                 self.db.put_attachment(self.db[binary_id],
-                                       self.currentFile,
+                                       data,
                                        filename="file")
+                file_doc['size'] = len(data)
+                self.writeBuffers.pop(path, None)
 
-                binary = self.db[binary_id]
-                file_doc['binary']['file']['rev'] = binary['_rev']
-                file_doc['lastModification'] = datetime.datetime.now().ctime()
-                file_doc['size'] = len(self.currentFile)
-                self.db.save(file_doc)
+            binary = self.db[binary_id]
+            file_doc['binary']['file']['rev'] = binary['_rev']
+            file_doc['lastModification'] = datetime.datetime.now().ctime()
+            self.db.save(file_doc)
 
-                # TODO check if it waits that synchronisation is finished.
-                self._replicate_from_local([binary_id])
-                self.currentFile = ""
+            logger.info("release is done")
+            return 0
 
         except Exception, e:
             logger.exception(e)
             return -errno.ENOENT
-
 
     def mknod(self, path, mode, dev):
         """
@@ -344,17 +392,19 @@ class CouchFSDocument(fuse.Fuse):
                  file
         """
         try:
+            path = _normalize_path(path)
+            logger.info('mknod %s' % path)
             (file_path, name) = _path_split(path)
 
+            file_path = _normalize_path(file_path)
             new_binary = {"docType": "Binary"}
             binary_id = self.db.create(new_binary)
-            # TODO put binary copy in a micro thread?
             self.db.put_attachment(self.db[binary_id], '', filename="file")
 
             rev = self.db[binary_id]["_rev"]
             newFile = {
                 "name": name,
-                "path": file_path,
+                "path": _normalize_path(file_path),
                 "binary": {
                     "file": {
                         "id": binary_id,
@@ -367,33 +417,44 @@ class CouchFSDocument(fuse.Fuse):
             }
             self.db.create(newFile)
 
-            # TODO put replication in a micro thread?
-            self._replicate_from_local([binary_id])
-
-            # TODO update get_dirs
+            self.add_file_to_dirs(file_path, name)
+            logger.info('mknod is done for %s' % path)
+            return 0
         except Exception, e:
             logger.exception(e)
             return -errno.ENOENT
+
 
     def unlink(self, path):
         """
         Remove file from database.
         """
-        path = _normalize_path(path)
-        parts = path.rsplit(u'/', 1)
-        if len(parts) == 1:
-            dirname, filename = u'', parts[0]
-        else:
-            dirname, filename = parts
 
-        for res in self.db.view("file/byFullPath", key='/' + path):
-            file_doc = res.value
-            binary_id = file_doc["binary"]["file"]["id"]
-            self.db.delete(self.db[binary_id])
-            self.db.delete(self.db[file_doc["_id"]])
-            # TODO put replication in a micro thread?
-            self._replicate_from_local([binary_id])
-            # TODO update get_dirs
+        try:
+            path = _normalize_path(path)
+            logger.info('unlink %s' % path)
+            parts = path.rsplit(u'/', 1)
+            if len(parts) == 1:
+                dirname, filename = u'', parts[0]
+            else:
+                dirname, filename = parts
+
+            file_doc = dbutils.get_file(self.db, path)
+            if file_doc is not None:
+                binary_id = file_doc["binary"]["file"]["id"]
+                self.db.delete(self.db[binary_id])
+                self.db.delete(self.db[file_doc["_id"]])
+
+                self.remove_file_from_dirs(dirname, filename)
+                logger.info('file %s removed' % path)
+                return 0
+            else:
+                logger.warn('Cannot delete file, no entry found')
+                return -errno.ENOENT
+
+        except Exception, e:
+            logger.exception(e)
+            return -errno.ENOENT
 
     def truncate(self, path, size):
         """ TODO: look if something should be done there.
@@ -413,36 +474,52 @@ class CouchFSDocument(fuse.Fuse):
             path {string}: diretory path
             mode {string}: directory permissions
         """
-        (folder_path, name) = _path_split(path)
+        try:
+            (folder_path, name) = _path_split(path)
 
-        logger.info('create new dir %s at path' % (name, path))
-        self.db.create({
-            "name": name,
-            "path": folder_path,
-            "docType": "Folder",
-            'creationDate': datetime.datetime.now().ctime(),
-            'lastModification': datetime.datetime.now().ctime(),
-        })
-        # TODO update self.dirs
+            logger.info('create new dir %s' % path)
+            self.db.create({
+                "name": name,
+                "path": _normalize_path(folder_path),
+                "docType": "Folder",
+                'creationDate': datetime.datetime.now().ctime(),
+                'lastModification': datetime.datetime.now().ctime(),
+            })
 
-        return 0
+            self.get_dirs().setdefault(path[1:], set())
+            self.getattr(path)
+            return 0
+
+        except Exception, e:
+            logger.exception(e)
+            return -errno.ENOENT
 
     def rmdir(self, path):
         """
         Delete folder from database.
             path {string}: diretory path
         """
-        for res in self.db.view("folder/byFullPath", key=path):
-            folder = res.value
+        try:
+            path = _normalize_path(path)
+            logger.info('rmdir %s' % path)
+            folder = dbutils.get_folder(self.db, path)
             self.db.delete(self.db[folder['_id']])
 
-            # TODO update self.dirs
+            self.dirs.pop(path, None)
+            self.descriptors.pop(path, None)
             return 0
+
+        except Exception, e:
+            logger.exception(e)
+            return -errno.ENOENT
 
     def rename(self, pathfrom, pathto):
         """
         Rename file and subfiles (if it's a folder) in database.
         """
+        logger.info("path rename %s: " % pathfrom)
+        pathfrom = _normalize_path(pathfrom)
+        pathto = _normalize_path(pathto)
 
         for doc in self.db.view("file/byFullPath", key=pathfrom):
             doc = doc.value
@@ -534,7 +611,13 @@ def _normalize_path(path):
     Remove trailing slash and/or empty path part.
     ex: /home//user/ becomes /home/user
     '''
-    return u'/'.join([part for part in path.split(u'/') if part != u''])
+    path = u'/'.join([part for part in path.split(u'/') if part != u''])
+    if len(path) == 0:
+        return '/'
+    elif path[0] != '/':
+        return '/' + path
+    else:
+        return path
 
 
 def _path_split(path):
