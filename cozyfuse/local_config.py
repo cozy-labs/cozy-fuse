@@ -171,7 +171,7 @@ def clear():
     os.remove(CONFIG_PATH)
 
 
-def get_daemon_context(device_name, daemon_name):
+def get_daemon_context(device_name, daemon_name, files_preserve=[]):
     '''
     Return a proper daemon context:
     * create a working directory for the daemon ~/.cozyfuse/device_name.
@@ -190,6 +190,7 @@ def get_daemon_context(device_name, daemon_name):
     return daemon.DaemonContext(
         working_directory=folder,
         pidfile=lockfile.FileLock(os.path.join(folder, pidfile)),
+        files_preserve=files_preserve,
     )
 
 
