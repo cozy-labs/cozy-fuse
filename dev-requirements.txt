@@ -1,7 +1,7 @@
 pytest
 requests
 couchdb
-daemon
+python-daemon
 lockfile
 httpretty
 fuse-python
