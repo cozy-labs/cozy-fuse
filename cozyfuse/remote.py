@@ -64,6 +64,7 @@ def remove_device(url, device_id, password):
     Remove device from its Cozy.
     '''
     response = requests.delete('%s/device/%s/' % (url, device_id),
-                    auth=('owner', password), verify=False)
+                               auth=('owner', password), verify=False)
+
     logger.info('[Remote config] Device deletion succeeded for %s.' % url)
     return response
