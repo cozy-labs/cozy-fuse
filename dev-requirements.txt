@@ -4,3 +4,4 @@ couchdb
 daemon
 lockfile
 httpretty
+fuse-python
