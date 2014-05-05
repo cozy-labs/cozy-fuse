@@ -21,6 +21,8 @@ import calendar
 import dbutils
 import local_config
 
+from couchdb import ResourceNotFound
+
 fuse.fuse_python_api = (0, 2)
 
 CONFIG_FOLDER = os.path.join(os.path.expanduser('~'), '.cozyfuse')
@@ -113,11 +115,12 @@ class CouchFSDocument(fuse.Fuse):
         '''
         Add file reference to directory cache.
         '''
-        logger.info("path add: " + path)
+        full_path = os.path.join(path, name)
+        logger.info("path add: %s" % full_path)
         path = _normalize_path(path)
         filenames = self.dirs.setdefault(path, set())
         filenames.add(name)
-        self.getattr(os.path.join(path, name))
+        self.getattr(full_path)
 
     def remove_file_from_dirs(self, path, name):
         '''
@@ -277,14 +280,12 @@ class CouchFSDocument(fuse.Fuse):
             else:
                 dirname, filename = parts
 
-            logger.info(dirname)
-            logger.info(filename)
-            logger.info(self.dirs)
             if filename in self.get_dirs()[dirname]:
                 logger.info('%s found' % filename)
+                return 0
             else:
                 logger.error('File not found %s' % path)
-            return 0
+                return -errno.ENOENT
 
         except Exception, e:
             logger.exception(e)
@@ -356,6 +357,8 @@ class CouchFSDocument(fuse.Fuse):
         """
         try:
             path = _normalize_path(path)
+            if len(path) > 0 and path[0] != '/':
+                path = '/' + path
             logger.info('release file %s' % path)
             file_doc = dbutils.get_file(self.db, path)
             binary_id = file_doc["binary"]["file"]["id"]
@@ -368,10 +371,10 @@ class CouchFSDocument(fuse.Fuse):
                 file_doc['size'] = len(data)
                 self.writeBuffers.pop(path, None)
 
-            binary = self.db[binary_id]
-            file_doc['binary']['file']['rev'] = binary['_rev']
-            file_doc['lastModification'] = datetime.datetime.now().ctime()
-            self.db.save(file_doc)
+                binary = self.db[binary_id]
+                file_doc['binary']['file']['rev'] = binary['_rev']
+                file_doc['lastModification'] = datetime.datetime.now().ctime()
+                self.db.save(file_doc)
 
             logger.info("release is done")
             return 0
@@ -417,6 +420,8 @@ class CouchFSDocument(fuse.Fuse):
             }
             self.db.create(newFile)
 
+            logger.info("file created")
+            # TODO debug add_file_to_dirs
             self.add_file_to_dirs(file_path, name)
             logger.info('mknod is done for %s' % path)
             return 0
@@ -435,14 +440,19 @@ class CouchFSDocument(fuse.Fuse):
             logger.info('unlink %s' % path)
             parts = path.rsplit(u'/', 1)
             if len(parts) == 1:
-                dirname, filename = u'', parts[0]
+                    dirname, filename = u'', parts[0]
             else:
                 dirname, filename = parts
 
             file_doc = dbutils.get_file(self.db, path)
             if file_doc is not None:
                 binary_id = file_doc["binary"]["file"]["id"]
-                self.db.delete(self.db[binary_id])
+                logger.info(self.db[file_doc["_id"]])
+
+                try:
+                    self.db.delete(self.db[binary_id])
+                except ResourceNotFound:
+                    pass
                 self.db.delete(self.db[file_doc["_id"]])
 
                 self.remove_file_from_dirs(dirname, filename)
@@ -613,9 +623,9 @@ def _normalize_path(path):
     '''
     path = u'/'.join([part for part in path.split(u'/') if part != u''])
     if len(path) == 0:
-        return '/'
-    elif path[0] != '/':
-        return '/' + path
+        return ''
+    elif path[0] == '/':
+        return path[1:]
     else:
         return path
 
