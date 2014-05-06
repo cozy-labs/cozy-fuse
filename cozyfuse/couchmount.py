@@ -107,88 +107,10 @@ class CouchFSDocument(fuse.Fuse):
         self.rep_target = "https://%s:%s@%s/cozy" % string_data
 
         # init cache
-        self.dirs = {}
         self.descriptors = {}
         self.writeBuffers = {}
 
-    def add_file_to_dirs(self, path, name):
-        '''
-        Add file reference to directory cache.
-        '''
-        full_path = os.path.join(path, name)
-        logger.info("path add: %s" % full_path)
-        path = _normalize_path(path)
-        filenames = self.dirs.setdefault(path, set())
-        filenames.add(name)
-        self.getattr(full_path)
 
-    def remove_file_from_dirs(self, path, name):
-        '''
-        Remove file reference from directory cache.
-        '''
-        logger.info("path remove: " + path)
-        if len(path) > 0:
-            file_path = os.path.join(path, name)
-        else:
-            file_path = name
-        path = _normalize_path(path)
-        file_path = _normalize_path(file_path)
-
-        filenames = self.get_dirs().setdefault(path, set())
-        if name in filenames:
-            filenames.remove(name)
-        self.descriptors.pop(file_path, None)
-
-    def get_dirs(self):
-        """
-        Get directories
-        """
-        try:
-            if len(self.dirs.keys()) > 0:
-                return self.dirs
-            else:
-                self.dirs = {}
-
-                folders = dbutils.get_folders(self.db)
-                for folder in folders:
-                    folder_path = os.path.join(folder.value["path"],
-                                               folder.value["name"])
-                    if len(folder_path) != 0:
-                        folder_path = folder_path[0:]
-
-                    parents = [u'']
-                    for name in folder_path.split('/'):
-                        if name != '':
-                            path = u'/'.join(parents[1:])
-
-                            path = _normalize_path(path)
-                            filenames = self.dirs.setdefault(path, set())
-                            filenames.add(name)
-                            parents.append(name)
-
-                    folder_path = _normalize_path(folder_path)
-                    self.dirs.setdefault(u'' + folder_path, set())
-
-                files = dbutils.get_files(self.db)
-                for file_doc in files:
-                    file_path = os.path.join(
-                        file_doc.value["path"], file_doc.value["name"])
-                    parents = [u'']
-                    for name in file_path.split('/'):
-                        if name != '':
-                            path = u'/'.join(parents[1:])
-
-                            path = _normalize_path(path)
-                            filenames = self.dirs.setdefault(path, set())
-                            filenames.add(name)
-                            parents.append(name)
-
-            logger.info(self.dirs)
-            return self.dirs
-
-        except Exception, e:
-            logger.exception(e)
-            return {}
 
     def readdir(self, path, offset):
         """
@@ -198,8 +120,12 @@ class CouchFSDocument(fuse.Fuse):
         path = _normalize_path(path)
         for directory in '.', '..':  # this two folders are conventional in Unix system.
             yield fuse.Direntry(directory)
-        for name in self.get_dirs().get(path, set()):
-            yield fuse.Direntry(name.encode('utf-8'))
+        res = self.db.view('file/byFolder', key=path)
+        for doc in res:
+            yield fuse.Direntry(doc.value['name'].encode('utf-8'))
+        res = self.db.view('folder/byFolder', key=path)
+        for doc in res:
+            yield fuse.Direntry(doc.value['name'].encode('utf-8'))
 
     def getattr(self, path):
         """
@@ -209,56 +135,56 @@ class CouchFSDocument(fuse.Fuse):
             logger.debug('getattr %s' % path)
 
             # Result is cached.
-            if path in self.descriptors:
+            """if path in self.descriptors:
                 return self.descriptors[path]
 
-            else:
-                st = CouchStat()
+            else:"""
+            st = CouchStat()
 
-                # Path is root
-                if path is "/":
+            # Path is root
+            if path is "/":
+                st.st_mode = stat.S_IFDIR | 0775
+                st.st_nlink = 2
+                self.descriptors[path] = st
+                return st
+
+            else:
+                # Or path is a folder
+                folder = dbutils.get_folder(self.db, path)
+
+                if folder is not None:
                     st.st_mode = stat.S_IFDIR | 0775
                     st.st_nlink = 2
+                    if 'lastModification' in folder:
+                        st.st_atime = get_date(folder['lastModification'])
+                        st.st_ctime = st.st_atime
+                        st.st_mtime = st.st_atime
+
                     self.descriptors[path] = st
                     return st
 
                 else:
-                    # Or path is a folder
-                    folder = dbutils.get_folder(self.db, path)
+                    # Or path is a file
+                    file_doc = dbutils.get_file(self.db, path)
 
-                    if folder is not None:
-                        st.st_mode = stat.S_IFDIR | 0775
-                        st.st_nlink = 2
-                        if 'lastModification' in folder:
-                            st.st_atime = get_date(folder['lastModification'])
+                    if file_doc is not None:
+                        st.st_mode = stat.S_IFREG | 0664
+                        st.st_nlink = 1
+                        # TODO: if size is not set, get the binary
+                        # and save the information.
+                        st.st_size = file_doc.get('size', 4096)
+                        if 'lastModification' in file_doc:
+                            st.st_atime = \
+                                get_date(file_doc['lastModification'])
                             st.st_ctime = st.st_atime
                             st.st_mtime = st.st_atime
-
                         self.descriptors[path] = st
                         return st
 
                     else:
-                        # Or path is a file
-                        file_doc = dbutils.get_file(self.db, path)
-
-                        if file_doc is not None:
-                            st.st_mode = stat.S_IFREG | 0664
-                            st.st_nlink = 1
-                            # TODO: if size is not set, get the binary
-                            # and save the information.
-                            st.st_size = file_doc.get('size', 4096)
-                            if 'lastModification' in file_doc:
-                                st.st_atime = \
-                                    get_date(file_doc['lastModification'])
-                                st.st_ctime = st.st_atime
-                                st.st_mtime = st.st_atime
-                            self.descriptors[path] = st
-                            return st
-
-                        else:
-                            print 'File does not exist: %s' % path
-                            return -errno.ENOENT
-                            return st
+                        print 'File does not exist: %s' % path
+                        return -errno.ENOENT
+                        return st
 
         except Exception, e:
             logger.exception(e)
@@ -271,17 +197,11 @@ class CouchFSDocument(fuse.Fuse):
             flags {string}: opening mode
         """
         path = _normalize_path(path)
-
         try:
             logger.info('open %s' % path)
-            parts = path.rsplit(u'/', 1)
-            if len(parts) == 1:
-                dirname, filename = u'', parts[0]
-            else:
-                dirname, filename = parts
-
-            if filename in self.get_dirs()[dirname]:
-                logger.info('%s found' % filename)
+            res = self.db.view('file/byFullPath', key=path)
+            if len(res) > 0:
+                logger.info('%s found' % path)
                 return 0
             else:
                 logger.error('File not found %s' % path)
@@ -315,8 +235,6 @@ class CouchFSDocument(fuse.Fuse):
             else:
                 content = binary_attachment.read()
                 content_length = len(content)
-                logger.info('Return file content')
-
                 if offset < content_length:
                     if offset + size > content_length:
                         size = content_length - offset
@@ -419,8 +337,6 @@ class CouchFSDocument(fuse.Fuse):
             self.db.create(newFile)
 
             logger.info("file created")
-            # TODO debug add_file_to_dirs
-            self.add_file_to_dirs(file_path, name)
             logger.info('mknod is done for %s' % path)
             return 0
         except Exception, e:
@@ -452,8 +368,6 @@ class CouchFSDocument(fuse.Fuse):
                 except ResourceNotFound:
                     pass
                 self.db.delete(self.db[file_doc["_id"]])
-
-                self.remove_file_from_dirs(dirname, filename)
                 logger.info('file %s removed' % path)
                 return 0
             else:
@@ -493,8 +407,6 @@ class CouchFSDocument(fuse.Fuse):
                 'creationDate': datetime.datetime.now().ctime(),
                 'lastModification': datetime.datetime.now().ctime(),
             })
-
-            self.get_dirs().setdefault(path[1:], set())
             self.getattr(path)
             return 0
 
@@ -513,7 +425,6 @@ class CouchFSDocument(fuse.Fuse):
             folder = dbutils.get_folder(self.db, path)
             self.db.delete(self.db[folder['_id']])
 
-            self.dirs.pop(path, None)
             self.descriptors.pop(path, None)
             return 0
 
@@ -554,7 +465,6 @@ class CouchFSDocument(fuse.Fuse):
 
             self.db.save(doc)
 
-            # TODO update get_dirs
             # TODO update last modification date
             return 0
 
