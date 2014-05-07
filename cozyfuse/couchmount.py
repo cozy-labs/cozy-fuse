@@ -34,13 +34,19 @@ logger.addHandler(HDLR)
 logger.setLevel(logging.INFO)
 #local_config.configure_logger(logger)
 
+def get_current_date():
+    return datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+
 
 def get_date(ctime):
     ctime = ctime[0:24]
     try:
-        date = datetime.datetime.strptime(ctime, "%a %b %d %H:%M:%S %Y")
+        date = datetime.datetime.strptime(ctime, "%Y-%m-%dT%H:%M:%S")
     except ValueError:
-        date = datetime.datetime.strptime(ctime, "%a %b %d %Y %H:%M:%S")
+        try:
+            date = datetime.datetime.strptime(ctime, "%a %b %d %Y %H:%M:%S")
+        except ValueError:
+            date = datetime.datetime.strptime(ctime, "%a %b %d %H:%M:%S %Y")
     return calendar.timegm(date.utctimetuple())
 
 
@@ -285,11 +291,11 @@ class CouchFSDocument(fuse.Fuse):
                                        data,
                                        filename="file")
                 file_doc['size'] = len(data)
+                file_doc['lastModification'] = get_current_date()
                 self.writeBuffers.pop(path, None)
 
                 binary = self.db[binary_id]
                 file_doc['binary']['file']['rev'] = binary['_rev']
-                file_doc['lastModification'] = datetime.datetime.now().ctime()
                 self.db.save(file_doc)
 
             logger.info("release is done")
@@ -321,6 +327,7 @@ class CouchFSDocument(fuse.Fuse):
             self.db.put_attachment(self.db[binary_id], '', filename="file")
 
             rev = self.db[binary_id]["_rev"]
+            now = get_current_date()
             newFile = {
                 "name": name,
                 "path": _normalize_path(file_path),
@@ -331,12 +338,12 @@ class CouchFSDocument(fuse.Fuse):
                     }
                 },
                 "docType": "File",
-                'creationDate': datetime.datetime.now().ctime(),
-                'lastModification': datetime.datetime.now().ctime(),
+                'creationDate': now,
+                'lastModification': now,
             }
             self.db.create(newFile)
-
             logger.info("file created")
+            self._update_parent_folder(newFile['path'])
             logger.info('mknod is done for %s' % path)
             return 0
         except Exception, e:
@@ -369,6 +376,7 @@ class CouchFSDocument(fuse.Fuse):
                     pass
                 self.db.delete(self.db[file_doc["_id"]])
                 logger.info('file %s removed' % path)
+                self._update_parent_folder(file_doc['path'])
                 return 0
             else:
                 logger.warn('Cannot delete file, no entry found')
@@ -398,16 +406,17 @@ class CouchFSDocument(fuse.Fuse):
         """
         try:
             (folder_path, name) = _path_split(path)
-
+            now = get_current_date()
             logger.info('create new dir %s' % path)
             self.db.create({
                 "name": name,
                 "path": _normalize_path(folder_path),
                 "docType": "Folder",
-                'creationDate': datetime.datetime.now().ctime(),
-                'lastModification': datetime.datetime.now().ctime(),
+                'creationDate': now,
+                'lastModification': now,
             })
-            self.getattr(path)
+            #self.getattr(path)
+            self._update_parent_folder(_normalize_path(folder_path))
             return 0
 
         except Exception, e:
@@ -432,40 +441,49 @@ class CouchFSDocument(fuse.Fuse):
             logger.exception(e)
             return -errno.ENOENT
 
-    def rename(self, pathfrom, pathto):
+    def rename(self, pathfrom, pathto, root=True):
         """
         Rename file and subfiles (if it's a folder) in database.
         """
-        logger.info("path rename %s: " % pathfrom)
+        logger.info("path rename %s -> %s: " %(pathfrom, pathto))
         pathfrom = _normalize_path(pathfrom)
         pathto = _normalize_path(pathto)
 
         for doc in self.db.view("file/byFullPath", key=pathfrom):
             doc = doc.value
             (file_path, name) = _path_split(pathto)
-            doc.update({"name": name, "path": file_path})
+            doc.update({"name": name, "path": file_path, "lastModification": get_current_date()})
             self.db.save(doc)
+            if root:
+                self._update_parent_folder(file_path)
+                # Change lastModification for file_path_from in case of file was moved
+                (file_path_from, name) = _path_split(pathfrom)
+                self._update_parent_folder(file_path_from)
             return 0
 
         for doc in self.db.view("folder/byFullPath", key=pathfrom):
             doc = doc.value
             (file_path, name) = _path_split(pathto)
-            doc.update({"name": name, "path": file_path})
+            doc.update({"name": name, "path": file_path, "lastModification": get_current_date()})
 
             # Rename all subfiles
             for res in self.db.view("file/byFolder", key=pathfrom):
-                pathfrom = os.path.join(res.value['path'], res.value['name'])
-                pathto = os.path.join(file_path, name, res.value['name'])
-                self.rename(pathfrom, pathto)
+                child_pathfrom = os.path.join(res.value['path'], res.value['name'])
+                child_pathto = os.path.join(file_path, name, res.value['name'])
+                self.rename(child_pathfrom, child_pathto, False)
 
             for res in self.db.view("folder/byFolder", key=pathfrom):
-                pathfrom = os.path.join(res.value['path'], res.value['name'])
-                pathto = os.path.join(file_path, name, res.value['name'])
-                self.rename(pathfrom, pathto)
+                child_pathfrom = os.path.join(res.value['path'], res.value['name'])
+                child_pathto = os.path.join(file_path, name, res.value['name'])
+                self.rename(child_pathfrom, child_pathto, False)
+                
+            if root:
+                self._update_parent_folder(file_path)
+                # Change lastModification for file_path_from in case of file was moved
+                (file_path_from, name) = _path_split(pathfrom)
+                self._update_parent_folder(file_path_from)
 
             self.db.save(doc)
-
-            # TODO update last modification date
             return 0
 
     def fsync(self, path, isfsyncfile):
@@ -523,6 +541,12 @@ class CouchFSDocument(fuse.Fuse):
             doc_ids=ids
         )
 
+    def _update_parent_folder(self, parent_folder):
+        res = self.db.view('folder/byFullPath', key=parent_folder)
+        for folder in res:
+            folder = folder.value
+            folder['lastModification'] = get_current_date()
+            self.db.save(folder)
 
 def _normalize_path(path):
     '''
