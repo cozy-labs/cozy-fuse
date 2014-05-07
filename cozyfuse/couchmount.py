@@ -35,6 +35,10 @@ logger.setLevel(logging.INFO)
 #local_config.configure_logger(logger)
 
 def get_current_date():
+    """
+    Get current date : Return current date with format 'Y-m-d T H:M:S'
+        Exemple : 2014-05-07T09:17:48
+    """
     return datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
 
 
@@ -113,7 +117,6 @@ class CouchFSDocument(fuse.Fuse):
         self.rep_target = "https://%s:%s@%s/cozy" % string_data
 
         # init cache
-        self.descriptors = {}
         self.writeBuffers = {}
 
 
@@ -140,18 +143,12 @@ class CouchFSDocument(fuse.Fuse):
         try:
             logger.debug('getattr %s' % path)
 
-            # Result is cached.
-            """if path in self.descriptors:
-                return self.descriptors[path]
-
-            else:"""
             st = CouchStat()
 
             # Path is root
             if path is "/":
                 st.st_mode = stat.S_IFDIR | 0775
                 st.st_nlink = 2
-                self.descriptors[path] = st
                 return st
 
             else:
@@ -165,8 +162,6 @@ class CouchFSDocument(fuse.Fuse):
                         st.st_atime = get_date(folder['lastModification'])
                         st.st_ctime = st.st_atime
                         st.st_mtime = st.st_atime
-
-                    self.descriptors[path] = st
                     return st
 
                 else:
@@ -184,7 +179,6 @@ class CouchFSDocument(fuse.Fuse):
                                 get_date(file_doc['lastModification'])
                             st.st_ctime = st.st_atime
                             st.st_mtime = st.st_atime
-                        self.descriptors[path] = st
                         return st
 
                     else:
@@ -433,8 +427,6 @@ class CouchFSDocument(fuse.Fuse):
             logger.info('rmdir %s' % path)
             folder = dbutils.get_folder(self.db, path)
             self.db.delete(self.db[folder['_id']])
-
-            self.descriptors.pop(path, None)
             return 0
 
         except Exception, e:
@@ -476,7 +468,7 @@ class CouchFSDocument(fuse.Fuse):
                 child_pathfrom = os.path.join(res.value['path'], res.value['name'])
                 child_pathto = os.path.join(file_path, name, res.value['name'])
                 self.rename(child_pathfrom, child_pathto, False)
-                
+
             if root:
                 self._update_parent_folder(file_path)
                 # Change lastModification for file_path_from in case of file was moved
@@ -542,6 +534,14 @@ class CouchFSDocument(fuse.Fuse):
         )
 
     def _update_parent_folder(self, parent_folder):
+        """
+        Update parent folder
+            parent_folder {string}: parent folder path
+
+        When a file or a folder is renamed/created/removed, last modification date
+        of parent folder should be updated
+
+        """
         res = self.db.view('folder/byFullPath', key=parent_folder)
         for folder in res:
             folder = folder.value
