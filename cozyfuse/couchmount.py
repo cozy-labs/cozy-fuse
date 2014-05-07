@@ -486,17 +486,19 @@ class CouchFSDocument(fuse.Fuse):
         """
         try:
             (folder_path, name) = _path_split(path)
+            folder_path = _normalize_path(folder_path)
+            path = _normalize_path(path)
 
             logger.info('create new dir %s' % path)
             self.db.create({
                 "name": name,
-                "path": _normalize_path(folder_path),
+                "path": path,
                 "docType": "Folder",
                 'creationDate': datetime.datetime.now().ctime(),
                 'lastModification': datetime.datetime.now().ctime(),
             })
 
-            self.get_dirs().setdefault(path[1:], set())
+            self.get_dirs().setdefault(path, set())
             self.getattr(path)
             return 0
 
