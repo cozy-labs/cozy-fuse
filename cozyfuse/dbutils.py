@@ -350,8 +350,8 @@ def get_disk_space(database, url, device, device_password):
             else:
                 # Return arbitrary information
                 disk_space = {
-                    "freeDiskSpace": 1024 * 1024 * 1024,
+                    "freeDiskSpace": 1,
                     "usedDiskSpace": 0,
-                    "totalDiskSpace": 1024 * 1024 * 1024
+                    "totalDiskSpace": 1
                 }
                 return disk_space
