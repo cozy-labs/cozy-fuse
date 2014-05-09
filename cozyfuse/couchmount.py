@@ -590,8 +590,7 @@ class CouchFSDocument(fuse.Fuse):
             self.passwordCozy)
         st = fuse.StatVfs()
 
-        blocks = float(disk_space['totalDiskSpace']) * 1000 * 100
-        logger.info(blocks)
+        blocks = float(disk_space['totalDiskSpace']) * 1000 * 1000
         block_size = 1000
         blocks_free = float(disk_space['freeDiskSpace']) * 1000 * 1000
         blocks_avail = blocks_free
