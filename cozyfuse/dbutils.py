@@ -322,3 +322,36 @@ def init_device(database, url, path, device_pwd, device_id):
         logger.warn('[DB] Device filter document already exists')
 
     return False
+
+
+def get_disk_space(database, url, device, device_password):
+    # Recover disk space
+    db = get_db(database)
+    url = url.split('/')
+    try:
+        remote = "https://%s:%s@%s" % (device, device_password, url[2])
+        response = requests.get('%s/disk-space'%remote)
+        disk_space = json.loads(response.content)
+        # Store disk space
+        res = db.view('device/all')
+        for device in res:
+            device = device.value
+            device['diskSpace'] = disk_space['diskSpace']
+            db.save(device)
+            # Return disk space
+            return disk_space['diskSpace']
+    except:
+        # Recover information in database
+        res = db.view('device/all')
+        for device in res:
+            device = device.value
+            if 'diskSpace' in device:
+                return device['diskSpace']
+            else:
+                # Return arbitrary information
+                disk_space = {
+                    "freeDiskSpace": 1024 * 1024 * 1024,
+                    "usedDiskSpace": 0,
+                    "totalDiskSpace": 1024 * 1024 * 1024
+                }
+                return disk_space
