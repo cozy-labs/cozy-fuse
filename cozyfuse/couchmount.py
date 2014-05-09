@@ -503,11 +503,16 @@ class CouchFSDocument(fuse.Fuse):
         Feel free to set any of the above values to 0, which tells
         the kernel that the info is not available.
         """
+        disk_space = dbutils.get_disk_space(
+            self.database,
+            self.urlCozy,
+            self.loginCozy,
+            self.passwordCozy)
         st = fuse.StatVfs()
 
-        blocks = 1024 * 1024
-        block_size = 1024
-        blocks_free = blocks
+        blocks = float(disk_space['totalDiskSpace']) * 1000 * 1000
+        block_size = 1000
+        blocks_free = float(disk_space['freeDiskSpace']) * 1000 * 1000
         blocks_avail = blocks_free
 
         files = 0
