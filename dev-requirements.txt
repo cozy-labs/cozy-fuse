@@ -5,3 +5,5 @@ python-daemon
 lockfile
 httpretty
 fuse-python
+cython
+kivy
