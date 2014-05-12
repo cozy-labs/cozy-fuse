@@ -220,8 +220,10 @@ def sync(name):
     (device_id, device_password) = local_config.get_device_config(name)
     (db_login, db_password) = local_config.get_db_credentials(name)
 
+    print 'Start continuous replication from Cozy to device.'
     replication.replicate(name, url, name, device_password, device_id,
                           db_login, db_password, to_local=True)
+    print 'Start continuous replication from device to Cozy.'
     replication.replicate(name, url, name, device_password, device_id,
                           db_login, db_password)
 
