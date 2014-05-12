@@ -14,7 +14,7 @@ To run properly Cozy Fuse requires that you setup:
 
 On Debian like system you can simply add them via
 
-    apt-get install couchdb fuse python-dev libfuse-dev
+    apt-get install couchdb fuse python-dev libfuse-dev libgl1-mesa-dev
 
 On OSX:
 * `brew install couchdb` (Homebrew) or `sudo port install couchdb && sudo port update couchdb && sudo port load couchdb` (MacPorts)
