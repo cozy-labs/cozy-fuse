@@ -19,6 +19,7 @@ import datetime
 import calendar
 
 import dbutils
+import replication
 import local_config
 
 from couchdb import ResourceNotFound
@@ -48,9 +49,12 @@ def get_date(ctime):
         date = datetime.datetime.strptime(ctime, "%Y-%m-%dT%H:%M:%S")
     except ValueError:
         try:
-            date = datetime.datetime.strptime(ctime, "%a %b %d %Y %H:%M:%S")
+            date = datetime.datetime.strptime(ctime, "%Y-%m-%dT%H:%M:%S.%fZ")
         except ValueError:
-            date = datetime.datetime.strptime(ctime, "%a %b %d %H:%M:%S %Y")
+            try:
+                date = datetime.datetime.strptime(ctime, "%a %b %d %Y %H:%M:%S")
+            except ValueError:
+                date = datetime.datetime.strptime(ctime, "%a %b %d %H:%M:%S %Y")
     return calendar.timegm(date.utctimetuple())
 
 
@@ -103,18 +107,17 @@ class CouchFSDocument(fuse.Fuse):
         # Configure replication urls.
         (self.db_username, self.db_password) = \
             local_config.get_db_credentials(database)
-        string_data = (
+        self.rep_source = 'http://%s:%s@localhost:5984/%s' % (
             self.db_username,
             self.db_password,
             self.database
         )
-        self.rep_source = 'http://%s:%s@localhost:5984/%s' % string_data
-        string_data = (
+        self.rep_target = "https://%s:%s@%s/cozy" % (
             self.loginCozy,
             self.passwordCozy,
             self.urlCozy.split('/')[2]
         )
-        self.rep_target = "https://%s:%s@%s/cozy" % string_data
+
 
         # init cache
         self.writeBuffers = {}
@@ -564,11 +567,11 @@ class CouchFSDocument(fuse.Fuse):
         of parent folder should be updated
 
         """
-        res = self.db.view('folder/byFullPath', key=parent_folder)
-        for folder in res:
-            folder = folder.value
+        folder = dbutils.get_folder(self.db, parent_folder)
+        if folder is not None:
             folder['lastModification'] = get_current_date()
             self.db.save(folder)
+
 
 def _normalize_path(path):
     '''
@@ -600,6 +603,15 @@ def unmount(path):
 
     subprocess.call(command)
     logger.info('Folder %s unmounted' % path)
+
+
+def start_sync():
+    print 'Continuous replications started.'
+    print 'Running daemon for binary synchronization...'
+    name = 'sync'
+    context = local_config.get_daemon_context(name, 'sync')
+    with context:
+        replication.BinaryReplication(name)
 
 
 def mount(name, path):
