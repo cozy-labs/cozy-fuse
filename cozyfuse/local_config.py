@@ -189,8 +189,8 @@ def get_daemon_context(device_name, daemon_name, files_preserve=[]):
 
     return daemon.DaemonContext(
         working_directory=folder,
-        pidfile=lockfile.FileLock(os.path.join(folder, pidfile)),
-        files_preserve=files_preserve,
+        pidfile=lockfile.FileLock(os.path.join(folder, pidfile))
+        #files_preserve=files_preserve,
     )
 
 
