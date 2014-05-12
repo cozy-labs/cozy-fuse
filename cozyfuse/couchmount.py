@@ -403,21 +403,27 @@ class CouchFSDocument(fuse.Fuse):
             folder_path = _normalize_path(folder_path)
             path = _normalize_path(path)
             now = get_current_date()
-            logger.info('create new dir %s' % path)
-            self.db.create({
-                "name": name,
-                "path": path,
-                "docType": "Folder",
-                'creationDate': now,
-                'lastModification': now,
-            })
 
-            self._update_parent_folder(_normalize_path(folder_path))
-            return 0
+            logger.info('create new dir %s' % path)
+            folder = dbutils.get_folder(self.db, path)
+            if folder is not None:
+                logger.info('folder already exists %s' % path)
+                return -errno.EEXIST
+            else:
+                self.db.create({
+                    "name": name,
+                    "path": folder_path,
+                    "docType": "Folder",
+                    'creationDate': now,
+                    'lastModification': now,
+                })
+
+                self._update_parent_folder(folder_path)
+                return 0
 
         except Exception, e:
             logger.exception(e)
-            return -errno.ENOENT
+            return -errno.EEXIST
 
     def rmdir(self, path):
         """
@@ -446,11 +452,16 @@ class CouchFSDocument(fuse.Fuse):
         for doc in self.db.view("file/byFullPath", key=pathfrom):
             doc = doc.value
             (file_path, name) = _path_split(pathto)
-            doc.update({"name": name, "path": file_path, "lastModification": get_current_date()})
+            doc.update({
+                "name": name,
+                "path": file_path,
+                "lastModification": get_current_date(
+            )})
             self.db.save(doc)
             if root:
                 self._update_parent_folder(file_path)
-                # Change lastModification for file_path_from in case of file was moved
+                # Change lastModification for file_path_from in case of file
+                # was moved
                 (file_path_from, name) = _path_split(pathfrom)
                 self._update_parent_folder(file_path_from)
             return 0
@@ -458,7 +469,11 @@ class CouchFSDocument(fuse.Fuse):
         for doc in self.db.view("folder/byFullPath", key=pathfrom):
             doc = doc.value
             (file_path, name) = _path_split(pathto)
-            doc.update({"name": name, "path": file_path, "lastModification": get_current_date()})
+            doc.update({
+                "name": name,
+                "path": file_path,
+                "lastModification": get_current_date()
+            })
 
             # Rename all subfiles
             for res in self.db.view("file/byFolder", key=pathfrom):
