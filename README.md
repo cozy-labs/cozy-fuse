@@ -33,16 +33,24 @@ On OSX, if this error occured: `error: command 'cc' failed with exit status 1`, 
 On OSX, you must start couchdb in a terminal or daemonize it by yourself:
 
     couchdb
+    
+Create an empty sync directory:
+
+    mkdir /home/me/cozy_sync
 
 Configure your connection with the remote Cozy:
 
-    cozy-fuse configure -u https://mycozy.cozycloud.cc -n online-cozy -p /home/me/mycozyfolder
+    cozy-fuse configure -u <url_of_your_cozy> -n <name_of_your_device> -p <sync>
+    
+For example:
+
+    cozy-fuse configure -u https://mycozy.cozycloud.cc -n laptop -p /home/me/cozy_sync
 
 Then starts synchronization and mount your target folder (both commands must
 be run at each startup):
 
-    cozy-fuse sync -n online -cozy
-    cozy-fuse mount -n online -cozy
+    cozy-fuse sync -n laptop
+    cozy-fuse mount -n laptop
 
 On Ubuntu you must add read rights on `/etc/fuse.conf`
 
@@ -56,7 +64,7 @@ On OSX, you must start CouchDB manually in a terminal, simply type `couchdb`
 *File copy fails.*: It can be due to a bad initialization of your remote Cozy
 Proxy. Restart your proxy, log in and retry.
 
-*where to find logs?*: Logs are stored in ~/.cozyfuse/cozyfuse.log .
+*Where to find logs?*: Local logs are stored in ~/.cozyfuse/cozyfuse.log .
 
 ## What is Cozy?
 
