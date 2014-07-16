@@ -28,7 +28,7 @@ def main(argv=sys.argv):
     parser.add_argument('action',
                         help='Action to perform.')
     parser.add_argument('-p', '--path',
-                        help='Path where Cozy files will be mounted')
+                        help='Local path where Cozy files will be mounted (must be an existing directory)')
     parser.add_argument('-u', '--url',
                         help='URL of remote Cozy to sync')
     parser.add_argument('-n', '--name',
