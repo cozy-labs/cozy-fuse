@@ -40,17 +40,17 @@ Create an empty sync directory:
 
 Configure your connection with the remote Cozy:
 
-    cozy-fuse configure -u <url_of_your_cozy> -n <name_of_your_device> -p <sync>
+    cozy-fuse configure <url_of_your_cozy> <name_of_your_device> <sync_directory>
     
 For example:
 
-    cozy-fuse configure -u https://mycozy.cozycloud.cc -n laptop -p /home/me/cozy_sync
+    cozy-fuse configure https://mycozy.cozycloud.cc laptop /home/me/cozy_sync
 
 Then starts synchronization and mount your target folder (both commands must
 be run at each startup):
 
-    cozy-fuse sync -n laptop
-    cozy-fuse mount -n laptop
+    cozy-fuse sync laptop
+    cozy-fuse mount laptop
 
 On Ubuntu you must add read rights on `/etc/fuse.conf`
 

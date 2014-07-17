@@ -207,8 +207,8 @@ def configure_new_device(name, url, path):
     print 'Step 3 succeeded: Metadata copied.'
     print ''
     print 'Cozy configuration %s succeeded!' % name
-    print 'Now type cozy-fuse sync -n %s to keep your data synchronized.' % name
-    print 'And type cozy-fuse mount -n %s to see your files in your ' \
+    print 'Now type "cozy-fuse sync %s" to keep your data synchronized.' % name
+    print 'And type "cozy-fuse mount %s" to see your files in your ' \
           'filesystem.' % name
 
 

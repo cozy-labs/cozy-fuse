@@ -26,13 +26,13 @@ def main(argv=sys.argv):
                           ' device remotely.')
     parser_configure.set_defaults(func=actions.configure_new_device)
 
+    parser_configure.add_argument('url',
+                     help='URL of remote Cozy to sync')
     parser_configure.add_argument('name',
                      help='Name to choose to reference the synchronized device')
     parser_configure.add_argument('path',
                      help='Local path to choose where Cozy files will be mounted'\
                           ' (must be an existing directory)')
-    parser_configure.add_argument('url',
-                     help='URL of remote Cozy to sync')
 
     # "sync" action
     parser_sync = subparsers.add_parser('sync',
