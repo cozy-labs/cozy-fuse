@@ -17,8 +17,8 @@ def register_device_remotely(name):
     Register device to target Cozy
     '''
     (url, path) = local_config.get_config(name)
-    if url[-1:] == '/':
-        url = url[:-(len(name)+1)]
+    # Remove trailing slash
+    url = url.rstrip('/')
     password = getpass.getpass('Type your Cozy password to register your '
                                'device remotely:\n')
     (device_id, device_password) = remote.register_device(name, url,
