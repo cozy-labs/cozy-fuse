@@ -85,8 +85,11 @@ def main(argv=sys.argv):
     parser_reset.set_defaults(func=actions.reset)
 
 
-    # Parse CLI arguments
-    parser.parse_args()
+    # Parse CLI arguments and execute related function
+    args = parser.parse_args()
+    args_dict = vars(args).copy()
+    del args_dict['func']
+    args.func(**args_dict)
 
 if __name__ == "__main__":
     main()
