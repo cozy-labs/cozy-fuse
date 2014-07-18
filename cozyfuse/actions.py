@@ -17,8 +17,8 @@ def register_device_remotely(name):
     Register device to target Cozy
     '''
     (url, path) = local_config.get_config(name)
-    if url[-1:] == '/':
-        url = url[:-(len(name)+1)]
+    # Remove trailing slash
+    url = url.rstrip('/')
     password = getpass.getpass('Type your Cozy password to register your '
                                'device remotely:\n')
     (device_id, device_password) = remote.register_device(name, url,
@@ -207,8 +207,8 @@ def configure_new_device(name, url, path):
     print 'Step 3 succeeded: Metadata copied.'
     print ''
     print 'Cozy configuration %s succeeded!' % name
-    print 'Now type cozy-fuse sync-n %s to keep your data synchronized.' % name
-    print 'And type cozy-fuse mount -n %s to see your files in your ' \
+    print 'Now type "cozy-fuse sync %s" to keep your data synchronized.' % name
+    print 'And type "cozy-fuse mount %s" to see your files in your ' \
           'filesystem.' % name
 
 

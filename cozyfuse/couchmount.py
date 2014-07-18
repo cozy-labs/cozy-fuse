@@ -24,6 +24,8 @@ import local_config
 
 from couchdb import ResourceNotFound
 
+DEVNULL = open(os.devnull, 'wb')
+
 fuse.fuse_python_api = (0, 2)
 
 CONFIG_FOLDER = os.path.join(os.path.expanduser('~'), '.cozyfuse')
@@ -601,7 +603,8 @@ def unmount(path):
     else:
         command = ["fusermount", "-u", path]
 
-    subprocess.call(command)
+    # Do not display fail messages at unmounting
+    subprocess.call(command, stdout=DEVNULL, stderr=subprocess.STDOUT)
     logger.info('Folder %s unmounted' % path)
 
 
