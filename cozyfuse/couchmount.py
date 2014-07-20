@@ -123,7 +123,6 @@ class CouchFSDocument(fuse.Fuse):
         self.writeBuffers = {}
 
 
-
     def readdir(self, path, offset):
         """
         Generator: list files for given path and yield each file result when
