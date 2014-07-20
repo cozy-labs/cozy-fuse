@@ -35,7 +35,6 @@ HDLR.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
 logger = logging.getLogger(__name__)
 logger.addHandler(HDLR)
 logger.setLevel(logging.INFO)
-#local_config.configure_logger(logger)
 
 def get_current_date():
     """
@@ -119,7 +118,6 @@ class CouchFSDocument(fuse.Fuse):
             self.passwordCozy,
             self.urlCozy.split('/')[2]
         )
-
 
         # init cache
         self.writeBuffers = {}
