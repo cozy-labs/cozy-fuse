@@ -6,4 +6,5 @@ lockfile
 httpretty
 fuse-python
 cython
+pyyaml
 kivy
