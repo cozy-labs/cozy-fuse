@@ -24,7 +24,7 @@ On OSX:
 
 In a console run:
 
-    pip install git+https://@github.com/mycozycloud/cozy-fuse-linux.git
+    (sudo) pip install git+https://@github.com/mycozycloud/cozy-fuse-linux.git
 
 On OSX, if this error occured: `error: command 'cc' failed with exit status 1`, try again with the following command:
 
@@ -50,11 +50,11 @@ Then starts synchronization and mount your target folder (both commands must
 be run at each startup):
 
     cozy-fuse sync laptop
-    cozy-fuse mount laptop
+    (sudo) cozy-fuse mount laptop
 
 On Ubuntu you must add read rights on `/etc/fuse.conf`
 
-    chmod a+r /etc/fuse.conf
+    (sudo) chmod a+r /etc/fuse.conf
 
 On OSX, you must start CouchDB manually in a terminal, simply type `couchdb`
 
@@ -63,7 +63,7 @@ On OSX, you must start CouchDB manually in a terminal, simply type `couchdb`
 
 In order to activate tab completion in CLI, you have to execute this command, or add it to your ~/.bashrc or ~/.zshrc file:
 
-    activate-global-python-argcomplete
+    (sudo) activate-global-python-argcomplete
     eval "$(register-python-argcomplete /usr/local/bin/cozy-fuse)"
 
 
