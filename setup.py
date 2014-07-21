@@ -8,7 +8,9 @@ setup(
     description='FUSE implementation for Cozy Files',
     author='Cozy Cloud',
     author_email='contact@cozycloud.cc',
-    url='http://cozy.io/',
+    url='https://github.com/cozy/cozy-fuse-linux',
+    download_url = 'https://github.com/cozy/cozy-fuse-linux/tarball/0.1.1',
+    keywords = ['cozy', 'fuse', 'linux', 'osx']
     license='LGPL',
     install_requires=[
         "fuse-python>=0.2",
