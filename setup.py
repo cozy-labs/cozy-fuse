@@ -2,10 +2,12 @@ import os
 
 from setuptools import setup
 
+setup_dir = os.path.dirname(os.path.abspath(__file__))
+
 # Copy cozy-fuse init script in Debian/Ubuntu
 # TODO: Do the same for OSX ?
 if os.path.exists('/etc/debian_version'):
-    data_files = [('/etc/init.d', ['scripts/init/cozy-fuse'])]
+    data_files = [('/etc/init.d', [os.path.join(setup_dir, 'scripts/init/cozy-fuse')])]
 else:
     data_files = []
 
