@@ -59,18 +59,20 @@ def init_replication(name):
 
     print 'Continuous replication from remote to local setting...'
     replication.replicate(name, url, name, password, device_id,
-                         db_login, db_password, to_local=True)
+                          db_login, db_password, to_local=True)
 
     print 'Continuous replication from local to remote setting...'
     replication.replicate(name, url, name, password, device_id,
                           db_login, db_password)
     print 'Metadata replications are done.'
 
+
 def kill_running_replications():
     '''
     Kill running replications in CouchDB (based on active tasks info).
     Useful when a replication is in Zombie mode.
     '''
+
     server = Server('http://localhost:5984/')
 
     for task in server.tasks():
@@ -87,7 +89,7 @@ def kill_running_replications():
             print 'Replication %s was not stopped.' % data['replication_id']
 
 
-def remove_device(name):
+def remove_device(device):
     '''
     Remove device from local and remote configuration by:
 
@@ -96,17 +98,17 @@ def remove_device(name):
     * Removing device from configuration file.
     * Destroying corresponding DB.
     '''
-    (url, path) = local_config.get_config(name)
+    (url, path) = local_config.get_config(device)
 
     couchmount.unmount(path)
-    remove_device_remotely(name)
+    remove_device_remotely(device)
 
     # Remove database
-    dbutils.remove_db(name)
-    dbutils.remove_db_user(name)
+    dbutils.remove_db(device)
+    dbutils.remove_db_user(device)
 
-    local_config.remove_config(name)
-    print 'Configuration %s successfully removed.' % name
+    local_config.remove_config(device)
+    print 'Configuration %s successfully removed.' % device
 
 
 def reset():
@@ -134,25 +136,53 @@ def reset():
     print '[reset] Configuration files deleted, folder unmounted.'
 
 
-def mount_folder(name):
+def mount_folder(devices=[]):
     '''
     Mount folder linked to given device.
     '''
-    try:
-        (url, path) = local_config.get_config(name)
-        couchmount.unmount(path)
-        couchmount.mount(name, path)
-    except KeyboardInterrupt:
-        unmount_folder(name)
+    if len(devices) == 0:
+        devices = local_config.get_startup_devices()
+
+    for name in devices:
+        try:
+            (url, path) = local_config.get_config(name)
+            couchmount.unmount(path)
+            couchmount.mount(name, path)
+        except KeyboardInterrupt:
+            unmount_folder(name)
 
 
-def unmount_folder(name, path=None):
+def unmount_folder(devices=[], path=None):
     '''
     Unmount folder linked to given device.
     '''
-    if path is None:
-        (url, path) = local_config.get_config(name)
-    couchmount.unmount(path)
+    if len(devices) == 0:
+        devices = local_config.get_startup_devices()
+
+    for name in devices:
+        if path is None:
+            (url, path) = local_config.get_config(name)
+        couchmount.unmount(path)
+
+
+def set_default(device):
+    '''
+    Set configuration parameter for the given device, to synchronize
+    and mount it at startup.
+    '''
+    local_config.set_startup_config(device, True)
+
+
+def unset_default(devices=[]):
+    '''
+    Remove configuration parameter for the given device, to avoid
+    synchronization and mounting at startup
+    '''
+    if len(devices) == 0:
+        devices = local_config.get_startup_devices()
+
+    for name in devices:
+        local_config.set_startup_config(name, False)
 
 
 def display_config():
@@ -167,26 +197,26 @@ def display_config():
         print ' '
 
 
-def unregister_device(name):
+def unregister_device(device):
     '''
     Remove device from local configuration, destroy corresponding database
     and unregister it from remote Cozy.
     '''
-    (url, path) = local_config.get_config(name)
-    (device_id, device_password) = local_config.get_device_config(name)
+    (url, path) = local_config.get_config(device)
+    (device_id, device_password) = local_config.get_device_config(device)
 
-    print 'Cozy connection removal for %s.' % name
-    local_config.remove(name)
+    print 'Cozy connection removal for %s.' % device
+    local_config.remove(device)
     print '- Local configuration removed.'
-    dbutils.remove_db(name)
+    dbutils.remove_db(device)
     print '- Local files removed.'
     password = getpass.getpass('Please type the password of your Cozy:\n')
     remote.remove_device(url, device_id, password)
     print '- Remote configuration removed.'
-    print 'Removal succeeded, everything clean!' % name
+    print 'Removal succeeded, everything clean!' % device
 
 
-def configure_new_device(name, url, path):
+def configure_new_device(device, url, path):
     '''
     * Create configuration for given device.
     * Create database and init CouchDB views.
@@ -196,42 +226,46 @@ def configure_new_device(name, url, path):
     print 'Welcome to Cozy Fuse!'
     print ''
     print 'Let\'s go configuring your new Cozy connection...'
-    (db_login, db_password) = dbutils.init_db(name)
+    (db_login, db_password) = dbutils.init_db(device)
     local_config.add_config(name, url, path, db_login, db_password)
     print 'Step 1 succeeded: Local configuration created'
-    register_device_remotely(name)
+    register_device_remotely(device)
     print 'Step 2 succeeded: Device registered remotely.'
     print ''
     print 'Now running the first time replication (it could be very long)...'
-    init_replication(name)
+    init_replication(device)
     print 'Step 3 succeeded: Metadata copied.'
     print ''
-    print 'Cozy configuration %s succeeded!' % name
-    print 'Now type "cozy-fuse sync %s" to keep your data synchronized.' % name
+    print 'Cozy configuration %s succeeded!' % device
+    print 'Now type "cozy-fuse sync %s" to keep your data synchronized.' % device
     print 'And type "cozy-fuse mount %s" to see your files in your ' \
-          'filesystem.' % name
+          'filesystem.' % device
 
 
-def sync(name):
+def sync(devices=[]):
     '''
     Run continuous synchronization between CouchDB instances.
     '''
-    (url, path) = local_config.get_config(name)
-    (device_id, device_password) = local_config.get_device_config(name)
-    (db_login, db_password) = local_config.get_db_credentials(name)
+    if len(devices) == 0:
+        devices = local_config.get_startup_devices()
 
-    print 'Start continuous replication from Cozy to device.'
-    replication.replicate(name, url, name, device_password, device_id,
-                          db_login, db_password, to_local=True)
-    print 'Start continuous replication from device to Cozy.'
-    replication.replicate(name, url, name, device_password, device_id,
-                          db_login, db_password)
+    for name in devices:
+        (url, path) = local_config.get_config(name)
+        (device_id, device_password) = local_config.get_device_config(name)
+        (db_login, db_password) = local_config.get_db_credentials(name)
 
-    print 'Continuous replications started.'
-    print 'Running daemon for binary synchronization...'
-    try:
-        context = local_config.get_daemon_context(name, 'sync')
-        with context:
-            replication.BinaryReplication(name)
-    except KeyboardInterrupt:
-        print ' Binary Synchronization interrupted.'
+        print 'Start continuous replication from Cozy to device.'
+        replication.replicate(name, url, name, device_password, device_id,
+                              db_login, db_password, to_local=True)
+        print 'Start continuous replication from device to Cozy.'
+        replication.replicate(name, url, name, device_password, device_id,
+                              db_login, db_password)
+
+        print 'Continuous replications started.'
+        print 'Running daemon for binary synchronization...'
+        try:
+            context = local_config.get_daemon_context(name, 'sync')
+            with context:
+                replication.BinaryReplication(name)
+        except KeyboardInterrupt:
+            print ' Binary Synchronization interrupted.'

@@ -1,4 +1,4 @@
-# [Cozy](http://cozy.io) Fuse Linux
+# [Cozy](http://cozy.io) Fuse client
 
 This programs allows you to mount files from your Cozy Files application in
 your file system. This way you can browse and manage them with your favorite
@@ -24,11 +24,11 @@ On OSX:
 
 In a console run:
 
-    pip install git+https://@github.com/mycozycloud/cozy-fuse-linux.git
+    (sudo) pip install git+https://@github.com/cozy/cozy-fuse.git
 
 On OSX, if this error occured: `error: command 'cc' failed with exit status 1`, try again with the following command:
 
-    ARCHFLAGS=-Wno-error=unused-command-line-argument-hard-error-in-future pip install git+https://github.com/mycozycloud/cozy-fuse-linux.git
+    ARCHFLAGS=-Wno-error=unused-command-line-argument-hard-error-in-future pip install git+https://github.com/cozy/cozy-fuse.git
 
 On OSX, you must start couchdb in a terminal or daemonize it by yourself:
 
@@ -50,13 +50,23 @@ Then starts synchronization and mount your target folder (both commands must
 be run at each startup):
 
     cozy-fuse sync laptop
-    cozy-fuse mount laptop
+    (sudo) cozy-fuse mount laptop
 
 On Ubuntu you must add read rights on `/etc/fuse.conf`
 
-    chmod a+r /etc/fuse.conf
+    (sudo) chmod a+r /etc/fuse.conf
 
 On OSX, you must start CouchDB manually in a terminal, simply type `couchdb`
+
+
+## Tab completion
+
+In order to activate tab completion in CLI, you have to execute this command, or add it to your ~/.bashrc or ~/.zshrc file:
+
+    sudo activate-global-python-argcomplete
+    python-argcomplete-check-easy-install-script /usr/local/bin/cozy-fuse
+    # OR
+    eval "$(register-python-argcomplete cozy-fuse/__main__.py)"
 
 
 ## Troubleshootings

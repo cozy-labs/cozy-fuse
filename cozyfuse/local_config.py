@@ -8,6 +8,10 @@ from yaml import Loader
 
 
 CONFIG_FOLDER = os.path.join(os.path.expanduser('~'), '.cozyfuse')
+# Create config folder if it doesn't exist.
+if not os.path.isdir(CONFIG_FOLDER):
+    os.mkdir(CONFIG_FOLDER)
+
 CONFIG_PATH = os.path.join(CONFIG_FOLDER, 'config.yaml')
 
 HDLR = logging.FileHandler(os.path.join(CONFIG_FOLDER, 'cozyfuse.log'))
@@ -38,10 +42,7 @@ def add_config(name, url, path, db_login, db_password):
         print 'Name, URL or path is missing'
 
     else:
-        # Create config file if it doesn't exist.
-        if not os.path.isdir(CONFIG_FOLDER):
-            os.mkdir(CONFIG_FOLDER)
-
+        # Create config file if it doesn't exist
         if not os.path.isfile(CONFIG_PATH):
             with file(CONFIG_PATH, 'a'):
                 os.utime(CONFIG_PATH, None)
@@ -130,6 +131,47 @@ def set_device_config(name, device_id, device_password):
         logger.info('[Config] Remote data added to config file')
 
 
+def get_startup_config(name):
+    '''
+    Return automatic startup configuration
+    '''
+    config = get_full_config()
+
+    if name not in config:
+        raise NoConfigFound('[Config] No device is registered for %s' % name)
+
+    return 'startup' in config[name] and config[name]['startup']
+
+
+def set_startup_config(name, automatic_startup):
+    '''
+    Set automatic startup configuration
+    '''
+    config = get_full_config()
+
+    if name not in config:
+        raise NoConfigFound('[Config] No device is registered for %s' % name)
+
+    config[name]['startup'] = automatic_startup
+
+    output_file = file(CONFIG_PATH, 'w')
+    dump(config, output_file, default_flow_style=False)
+    logger.info('[Config] Remote data added to config file')
+
+
+def get_startup_devices():
+    '''
+    Return a list of devices to synchronize and mount at startup
+    '''
+    config = get_full_config()
+
+    if len(config) > 0:
+        return [name for name, conf in config.items()
+                if 'startup' in conf and conf['startup']]
+    else:
+        return []
+
+
 def get_db_credentials(name):
     '''
     Extract DB credentials from config file.
@@ -190,7 +232,7 @@ def get_daemon_context(device_name, daemon_name, files_preserve=[]):
     return daemon.DaemonContext(
         working_directory=folder,
         pidfile=lockfile.FileLock(os.path.join(folder, pidfile))
-        #files_preserve=files_preserve,
+        # files_preserve=files_preserve,
     )
 
 

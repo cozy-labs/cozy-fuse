@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 logger.addHandler(HDLR)
 logger.setLevel(logging.INFO)
 
+
 def get_current_date():
     """
     Get current date : Return current date with format 'Y-m-d T H:M:S'
@@ -53,17 +54,22 @@ def get_date(ctime):
             date = datetime.datetime.strptime(ctime, "%Y-%m-%dT%H:%M:%S.%fZ")
         except ValueError:
             try:
-                date = datetime.datetime.strptime(ctime, "%a %b %d %Y %H:%M:%S")
+                date = datetime.datetime.strptime(
+                    ctime,
+                    "%a %b %d %Y %H:%M:%S")
             except ValueError:
-                date = datetime.datetime.strptime(ctime, "%a %b %d %H:%M:%S %Y")
+                date = datetime.datetime.strptime(
+                    ctime,
+                    "%a %b %d %H:%M:%S %Y")
     return calendar.timegm(date.utctimetuple())
 
 
-
 class CouchStat(fuse.Stat):
+
     '''
     Default file descriptor.
     '''
+
     def __init__(self):
         self.st_mode = 0
         self.st_ino = 0
@@ -78,6 +84,7 @@ class CouchStat(fuse.Stat):
 
 
 class CouchFSDocument(fuse.Fuse):
+
     '''
     Fuse implementation behavior: handles synchronisation with database when a
     change occurs or when users want to access to his/her file system.
@@ -99,7 +106,7 @@ class CouchFSDocument(fuse.Fuse):
         self.database = database
         (self.db, self.server) = dbutils.get_db_and_server(database)
 
-        ## Configure Cozy
+        # Configure Cozy
         device = dbutils.get_device(database)
         self.urlCozy = device['url']
         self.passwordCozy = device['password']
@@ -122,14 +129,14 @@ class CouchFSDocument(fuse.Fuse):
         # init cache
         self.writeBuffers = {}
 
-
     def readdir(self, path, offset):
         """
         Generator: list files for given path and yield each file result when
         it arrives.
         """
         path = _normalize_path(path)
-        for directory in '.', '..':  # this two folders are conventional in Unix system.
+        # this two folders are conventional in Unix system.
+        for directory in '.', '..':
             yield fuse.Direntry(directory)
         res = self.db.view('file/byFolder', key=path)
         for doc in res:
@@ -149,7 +156,7 @@ class CouchFSDocument(fuse.Fuse):
 
             # Path is root
             if path is "/":
-                st.st_mode = stat.S_IFDIR | 0775
+                st.st_mode = stat.S_IFDIR | 0o775
                 st.st_nlink = 2
                 return st
 
@@ -158,7 +165,7 @@ class CouchFSDocument(fuse.Fuse):
                 folder = dbutils.get_folder(self.db, path)
 
                 if folder is not None:
-                    st.st_mode = stat.S_IFDIR | 0775
+                    st.st_mode = stat.S_IFDIR | 0o775
                     st.st_nlink = 2
                     if 'lastModification' in folder:
                         st.st_atime = get_date(folder['lastModification'])
@@ -171,7 +178,7 @@ class CouchFSDocument(fuse.Fuse):
                     file_doc = dbutils.get_file(self.db, path)
 
                     if file_doc is not None:
-                        st.st_mode = stat.S_IFREG | 0664
+                        st.st_mode = stat.S_IFREG | 0o664
                         st.st_nlink = 1
                         # TODO: if size is not set, get the binary
                         # and save the information.
@@ -188,7 +195,7 @@ class CouchFSDocument(fuse.Fuse):
                         return -errno.ENOENT
                         return st
 
-        except Exception, e:
+        except Exception as e:
             logger.exception(e)
             return -errno.ENOENT
 
@@ -209,7 +216,7 @@ class CouchFSDocument(fuse.Fuse):
                 logger.error('File not found %s' % path)
                 return -errno.ENOENT
 
-        except Exception, e:
+        except Exception as e:
             logger.exception(e)
             return -errno.ENOENT
 
@@ -240,7 +247,7 @@ class CouchFSDocument(fuse.Fuse):
                 if offset < content_length:
                     if offset + size > content_length:
                         size = content_length - offset
-                    buf = content[offset:offset+size]
+                    buf = content[offset:offset + size]
 
                 else:
                     buf = ''
@@ -248,7 +255,7 @@ class CouchFSDocument(fuse.Fuse):
 
                 return buf
 
-        except Exception, e:
+        except Exception as e:
             logger.exception(e)
             return -errno.ENOENT
 
@@ -297,7 +304,7 @@ class CouchFSDocument(fuse.Fuse):
             logger.info("release is done")
             return 0
 
-        except Exception, e:
+        except Exception as e:
             logger.exception(e)
             return -errno.ENOENT
 
@@ -342,10 +349,9 @@ class CouchFSDocument(fuse.Fuse):
             self._update_parent_folder(newFile['path'])
             logger.info('mknod is done for %s' % path)
             return 0
-        except Exception, e:
+        except Exception as e:
             logger.exception(e)
             return -errno.ENOENT
-
 
     def unlink(self, path):
         """
@@ -357,7 +363,7 @@ class CouchFSDocument(fuse.Fuse):
             logger.info('unlink %s' % path)
             parts = path.rsplit(u'/', 1)
             if len(parts) == 1:
-                    dirname, filename = u'', parts[0]
+                dirname, filename = u'', parts[0]
             else:
                 dirname, filename = parts
 
@@ -378,7 +384,7 @@ class CouchFSDocument(fuse.Fuse):
                 logger.warn('Cannot delete file, no entry found')
                 return -errno.ENOENT
 
-        except Exception, e:
+        except Exception as e:
             logger.exception(e)
             return -errno.ENOENT
 
@@ -423,7 +429,7 @@ class CouchFSDocument(fuse.Fuse):
                 self._update_parent_folder(folder_path)
                 return 0
 
-        except Exception, e:
+        except Exception as e:
             logger.exception(e)
             return -errno.EEXIST
 
@@ -439,7 +445,7 @@ class CouchFSDocument(fuse.Fuse):
             self.db.delete(self.db[folder['_id']])
             return 0
 
-        except Exception, e:
+        except Exception as e:
             logger.exception(e)
             return -errno.ENOENT
 
@@ -447,7 +453,7 @@ class CouchFSDocument(fuse.Fuse):
         """
         Rename file and subfiles (if it's a folder) in database.
         """
-        logger.info("path rename %s -> %s: " %(pathfrom, pathto))
+        logger.info("path rename %s -> %s: " % (pathfrom, pathto))
         pathfrom = _normalize_path(pathfrom)
         pathto = _normalize_path(pathto)
 
@@ -458,7 +464,7 @@ class CouchFSDocument(fuse.Fuse):
                 "name": name,
                 "path": file_path,
                 "lastModification": get_current_date(
-            )})
+                )})
             self.db.save(doc)
             if root:
                 self._update_parent_folder(file_path)
@@ -479,18 +485,23 @@ class CouchFSDocument(fuse.Fuse):
 
             # Rename all subfiles
             for res in self.db.view("file/byFolder", key=pathfrom):
-                child_pathfrom = os.path.join(res.value['path'], res.value['name'])
+                child_pathfrom = os.path.join(
+                    res.value['path'],
+                    res.value['name'])
                 child_pathto = os.path.join(file_path, name, res.value['name'])
                 self.rename(child_pathfrom, child_pathto, False)
 
             for res in self.db.view("folder/byFolder", key=pathfrom):
-                child_pathfrom = os.path.join(res.value['path'], res.value['name'])
+                child_pathfrom = os.path.join(
+                    res.value['path'],
+                    res.value['name'])
                 child_pathto = os.path.join(file_path, name, res.value['name'])
                 self.rename(child_pathfrom, child_pathto, False)
 
             if root:
                 self._update_parent_folder(file_path)
-                # Change lastModification for file_path_from in case of file was moved
+                # Change lastModification for file_path_from in case of file
+                # was moved
                 (file_path_from, name) = _path_split(pathfrom)
                 self._update_parent_folder(file_path_from)
 
@@ -590,7 +601,7 @@ def _path_split(path):
     _normalize_path(path)
     (folder_path, name) = os.path.split(path)
     if folder_path[-1:] == '/':
-        folder_path = folder_path[:-(len(name)+1)]
+        folder_path = folder_path[:-(len(name) + 1)]
     return (folder_path, name)
 
 
