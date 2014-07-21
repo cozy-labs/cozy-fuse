@@ -7,4 +7,6 @@ httpretty
 fuse-python
 cython
 pyyaml
+argparse
+argcomplete
 kivy

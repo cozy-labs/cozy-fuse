@@ -59,6 +59,14 @@ On Ubuntu you must add read rights on `/etc/fuse.conf`
 On OSX, you must start CouchDB manually in a terminal, simply type `couchdb`
 
 
+## Tab completion
+
+In order to activate tab completion in CLI, you have to execute this command, or add it to your ~/.bashrc or ~/.zshrc file:
+
+    activate-global-python-argcomplete
+    eval "$(register-python-argcomplete /usr/local/bin/cozy-fuse)"
+
+
 ## Troubleshootings
 
 *File copy fails.*: It can be due to a bad initialization of your remote Cozy
