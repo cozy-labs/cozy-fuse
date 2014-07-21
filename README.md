@@ -63,8 +63,8 @@ On OSX, you must start CouchDB manually in a terminal, simply type `couchdb`
 
 In order to activate tab completion in CLI, you have to execute this command, or add it to your ~/.bashrc or ~/.zshrc file:
 
-    (sudo) activate-global-python-argcomplete
-    eval "$(register-python-argcomplete /usr/local/bin/cozy-fuse)"
+    cd cozy-fuse-linux
+    register-python-argcomplete cozy-fuse/__main__.py | sed "s@cozy-fuse/__main__.py@/usr/local/bin/cozy-fuse@g" >> ~/.bashrc
 
 
 ## Troubleshootings
