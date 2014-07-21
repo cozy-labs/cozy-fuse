@@ -166,7 +166,7 @@ def get_startup_devices():
     config = get_full_config()
 
     if len(config) > 0:
-        return [name for name, conf in config.items() 
+        return [name for name, conf in config.items()
                          if 'startup' in conf and conf['startup']]
     else:
         return []

@@ -141,7 +141,7 @@ def mount_folder(devices=[]):
     '''
     if len(devices) == 0:
         devices = local_config.get_startup_devices()
-    
+
     for name in devices:
         try:
             (url, path) = local_config.get_config(name)
@@ -157,7 +157,7 @@ def unmount_folder(devices=[], path=None):
     '''
     if len(devices) == 0:
         devices = local_config.get_startup_devices()
-    
+
     for name in devices:
         if path is None:
             (url, path) = local_config.get_config(name)
@@ -247,7 +247,7 @@ def sync(devices=[]):
     '''
     if len(devices) == 0:
         devices = local_config.get_startup_devices()
-    
+
     for name in devices:
         (url, path) = local_config.get_config(name)
         (device_id, device_password) = local_config.get_device_config(name)
