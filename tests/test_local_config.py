@@ -4,7 +4,7 @@ import pytest
 
 sys.path.append('..')
 
-import cozyfuse.local_config as local_config
+import cozy-fuse.local_config as local_config
 
 local_config.CONFIG_FOLDER = \
     os.path.join(os.path.expanduser('~'), '.cozyfuse-test')
