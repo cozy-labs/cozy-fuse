@@ -32,7 +32,7 @@ setup(
     setup_requires=[],
     tests_require=[
     ],
-    packages=['cozy-fuse'],
+    packages=['cozyfuse'],
     include_package_data=True,
     zip_safe=False,
     entry_points={
