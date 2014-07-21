@@ -8,7 +8,7 @@ from yaml import Loader
 
 
 CONFIG_FOLDER = os.path.join(os.path.expanduser('~'), '.cozyfuse')
-# Create config file if it doesn't exist.
+# Create config folder if it doesn't exist.
 if not os.path.isdir(CONFIG_FOLDER):
     os.mkdir(CONFIG_FOLDER)
 
