@@ -167,7 +167,7 @@ def get_startup_devices():
 
     if len(config) > 0:
         return [name for name, conf in config.items()
-                         if 'startup' in conf and conf['startup']]
+                if 'startup' in conf and conf['startup']]
     else:
         return []
 
@@ -232,7 +232,7 @@ def get_daemon_context(device_name, daemon_name, files_preserve=[]):
     return daemon.DaemonContext(
         working_directory=folder,
         pidfile=lockfile.FileLock(os.path.join(folder, pidfile))
-        #files_preserve=files_preserve,
+        # files_preserve=files_preserve,
     )
 
 

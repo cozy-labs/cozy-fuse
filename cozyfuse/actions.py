@@ -59,12 +59,13 @@ def init_replication(name):
 
     print 'Continuous replication from remote to local setting...'
     replication.replicate(name, url, name, password, device_id,
-                         db_login, db_password, to_local=True)
+                          db_login, db_password, to_local=True)
 
     print 'Continuous replication from local to remote setting...'
     replication.replicate(name, url, name, password, device_id,
                           db_login, db_password)
     print 'Metadata replications are done.'
+
 
 def kill_running_replications():
     '''

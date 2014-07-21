@@ -12,10 +12,12 @@ from yaml import load
 
 # Implement ArgumentParser class to display help on error
 class DefaultHelpParser(argparse.ArgumentParser):
+
     def error(self, message):
         sys.stderr.write('error: %s\n' % message)
         self.print_help()
         sys.exit(2)
+
 
 def DeviceCompleter(prefix, **kwargs):
     '''
@@ -28,10 +30,11 @@ def DeviceCompleter(prefix, **kwargs):
     else:
         return (name for name, conf in config.items())
 
+
 def main(argv=sys.argv):
 
     parser = DefaultHelpParser(
-        description='Manage your local configuration for Cozy syncing'\
+        description='Manage your local configuration for Cozy syncing'
                     ' and FUSE mounting',
         formatter_class=RawTextHelpFormatter)
 
@@ -40,7 +43,7 @@ def main(argv=sys.argv):
     # "configure" action
     parser_configure = subparsers.add_parser(
         'configure',
-        help='Configure a new Cozy locally and register current'\
+        help='Configure a new Cozy locally and register current'
              ' device remotely.'
     )
     parser_configure.set_defaults(func=actions.configure_new_device)
@@ -51,25 +54,25 @@ def main(argv=sys.argv):
     )
     parser_configure.add_argument(
         'device',
-         help='Device name to choose to refer to the synchronized device'
+        help='Device name to choose to refer to the synchronized device'
     )
     parser_configure.add_argument(
         'path',
-        help='Local path to choose where Cozy files will be mounted'\
+        help='Local path to choose where Cozy files will be mounted'
              ' (must be an existing directory)'
     )
 
     # "sync" action
     parser_sync = subparsers.add_parser(
-         'sync',
-         help='Synchronize current device with its remote Cozy.'
+        'sync',
+        help='Synchronize current device with its remote Cozy.'
     )
     parser_sync.set_defaults(func=actions.sync)
 
     parser_sync.add_argument(
-              'devices',
-              nargs='*',
-              help='Name of devices to sync'
+        'devices',
+        nargs='*',
+        help='Name of devices to sync'
     ).completer = DeviceCompleter
 
     # "unsync" action
@@ -156,7 +159,7 @@ def main(argv=sys.argv):
     # "reset" action
     parser_reset = subparsers.add_parser(
         'reset',
-        help='Clear all data from local computer and remove ' \
+        help='Clear all data from local computer and remove '
              'current device remotely.'
     )
     parser_reset.set_defaults(func=actions.reset)
