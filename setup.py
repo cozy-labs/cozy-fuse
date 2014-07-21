@@ -2,6 +2,13 @@ import os
 
 from setuptools import setup
 
+# Copy cozy-fuse init script in Debian/Ubuntu
+# TODO: Do the same for OSX ?
+if os.path.exists('/etc/debian_version'):
+    data_files = [('/etc/init.d', ['scripts/init/cozy-fuse'])]
+else:
+    data_files = []
+
 setup(
     name='cozy-fuse',
     version='0.1.1',
@@ -10,7 +17,7 @@ setup(
     author_email='contact@cozycloud.cc',
     url='https://github.com/cozy/cozy-fuse-linux',
     download_url = 'https://github.com/cozy/cozy-fuse-linux/tarball/0.1.1',
-    keywords = ['cozy', 'fuse', 'linux', 'osx']
+    keywords = ['cozy', 'fuse', 'linux', 'osx'],
     license='LGPL',
     install_requires=[
         "fuse-python>=0.2",
@@ -33,6 +40,7 @@ setup(
             'cozy-fuse = cozyfuse.__main__:main',
         ],
     },
+    data_files = data_files,
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Console',
@@ -50,8 +58,3 @@ setup(
     ],
 )
 
-setup_dir = os.path.dirname(os.path.abspath(__file__))
-# Copy cozy-fuse init script in Debian/Ubuntu
-# TODO: Do the same for OSX ?
-if os.path.exists('/etc/debian_version'):
-    data_files.append(['/etc/init.d', [os.path.join(setup_dir, 'scripts/init')]])
