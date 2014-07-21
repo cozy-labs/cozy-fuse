@@ -6,4 +6,4 @@ build
 dist
 virtualenv
 TODO
-cozy-fuse/erl_crash.dump
+cozyfuse/erl_crash.dump

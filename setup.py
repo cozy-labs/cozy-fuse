@@ -37,7 +37,7 @@ setup(
     zip_safe=False,
     entry_points={
         'console_scripts': [
-            'cozy-fuse = cozy-fuse.__main__:main',
+            'cozy-fuse = cozyfuse.__main__:main',
         ],
     },
     data_files = data_files,

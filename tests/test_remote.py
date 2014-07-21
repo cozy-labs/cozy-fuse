@@ -6,7 +6,7 @@ import httpretty
 
 sys.path.append('..')
 
-import cozy-fuse.local_config as local_config
+import cozyfuse.local_config as local_config
 local_config.CONFIG_FOLDER = \
     os.path.join(os.path.expanduser('~'), '.cozyfuse-test')
 
@@ -14,7 +14,7 @@ local_config.CONFIG_PATH = \
     os.path.join(local_config.CONFIG_FOLDER, 'config.yaml')
 
 
-import cozy-fuse.remote as remote
+import cozyfuse.remote as remote
 
 TESTDB = 'cozy-fuse-test'
 
