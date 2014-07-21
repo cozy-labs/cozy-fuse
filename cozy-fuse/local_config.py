@@ -8,6 +8,10 @@ from yaml import Loader
 
 
 CONFIG_FOLDER = os.path.join(os.path.expanduser('~'), '.cozyfuse')
+# Create config file if it doesn't exist.
+if not os.path.isdir(CONFIG_FOLDER):
+    os.mkdir(CONFIG_FOLDER)
+
 CONFIG_PATH = os.path.join(CONFIG_FOLDER, 'config.yaml')
 
 HDLR = logging.FileHandler(os.path.join(CONFIG_FOLDER, 'cozyfuse.log'))
@@ -38,10 +42,7 @@ def add_config(name, url, path, db_login, db_password):
         print 'Name, URL or path is missing'
 
     else:
-        # Create config file if it doesn't exist.
-        if not os.path.isdir(CONFIG_FOLDER):
-            os.mkdir(CONFIG_FOLDER)
-
+        # Create config file if it doesn't exist
         if not os.path.isfile(CONFIG_PATH):
             with file(CONFIG_PATH, 'a'):
                 os.utime(CONFIG_PATH, None)
