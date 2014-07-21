@@ -1,0 +1,46 @@
+#! /bin/sh
+### BEGIN INIT INFO
+# Provides: cozy-fuse
+# Required-Start: $local_fs $remote_fs $network $syslog
+# Required-Stop: $local_fs $remote_fs $network $syslog
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# Short-Description: Start/stop Cozy fuse synchronization and mount/unmount directory
+### END INIT INFO
+
+
+# Test if script exists
+test -x $DAEMON || exit 0
+
+. /lib/lsb/init-functions
+
+logger "Cozy FUSE clien: Start script executed"
+
+case "$1" in
+  start)
+    log_daemon_msg "Starting Cozy FUSE client"
+    logger "Cozy FUSE client: Starting synchronization"
+    /usr/local/bin/cozy-fuse sync
+    logger "Cozy FUSE client: Mounting directory"
+    /usr/local/bin/cozy-fuse mount
+    log_end_msg $?
+    ;;
+  stop)
+    log_daemon_msg "Stopping Cozy FUSE client"
+    logger "Cozy FUSE client: Stopping synchronization"
+    /usr/local/bin/cozy-fuse unsync
+    logger "Cozy FUSE client: Unmounting directory"
+    /usr/local/bin/cozy-fuse unmount
+    log_end_msg $?
+    ;;
+  restart)
+    /usr/bin/env bash -c "$0 stop && $0 start"
+    ;;
+  *)
+    logger "Cozy FUSE client: Invalid usage"
+    echo "Usage: /etc/init.d/cozy-fuse {start|stop|restart}"
+    exit 1
+    ;;
+esac
+
+exit 0

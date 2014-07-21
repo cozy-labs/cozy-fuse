@@ -71,6 +71,7 @@ def kill_running_replications():
     Kill running replications in CouchDB (based on active tasks info).
     Useful when a replication is in Zombie mode.
     '''
+
     server = Server('http://localhost:5984/')
 
     for task in server.tasks():
@@ -134,25 +135,59 @@ def reset():
     print '[reset] Configuration files deleted, folder unmounted.'
 
 
-def mount_folder(name):
+def mount_folder(name=[]):
     '''
     Mount folder linked to given device.
     '''
-    try:
-        (url, path) = local_config.get_config(name)
-        couchmount.unmount(path)
-        couchmount.mount(name, path)
-    except KeyboardInterrupt:
-        unmount_folder(name)
+    if len(name) == 0:
+        devices = local_config.get_startup_devices()
+    else:
+        devices = name
+    
+    for name in devices:
+        try:
+            (url, path) = local_config.get_config(name)
+            couchmount.unmount(path)
+            couchmount.mount(name, path)
+        except KeyboardInterrupt:
+            unmount_folder(name)
 
 
-def unmount_folder(name, path=None):
+def unmount_folder(name=[], path=None):
     '''
     Unmount folder linked to given device.
     '''
-    if path is None:
-        (url, path) = local_config.get_config(name)
-    couchmount.unmount(path)
+    if len(name) == 0:
+        devices = local_config.get_startup_devices()
+    else:
+        devices = name
+    
+    for name in devices:
+        if path is None:
+            (url, path) = local_config.get_config(name)
+        couchmount.unmount(path)
+
+
+def set_default(name):
+    '''
+    Set configuration parameter for the given device, to synchronize
+    and mount it at startup.
+    '''
+    local_config.set_startup_config(name, True)
+
+
+def unset_default(name=[]):
+    '''
+    Remove configuration parameter for the given device, to avoid
+    synchronization and mounting at startup
+    '''
+    if len(name) == 0:
+        devices = local_config.get_startup_devices()
+    else:
+        devices = name
+
+    for name in devices:
+        local_config.set_startup_config(name, False)
 
 
 def display_config():
@@ -212,26 +247,32 @@ def configure_new_device(name, url, path):
           'filesystem.' % name
 
 
-def sync(name):
+def sync(name=[]):
     '''
     Run continuous synchronization between CouchDB instances.
     '''
-    (url, path) = local_config.get_config(name)
-    (device_id, device_password) = local_config.get_device_config(name)
-    (db_login, db_password) = local_config.get_db_credentials(name)
+    if len(name) == 0:
+        devices = local_config.get_startup_devices()
+    else:
+        devices = name
+    
+    for name in devices:
+        (url, path) = local_config.get_config(name)
+        (device_id, device_password) = local_config.get_device_config(name)
+        (db_login, db_password) = local_config.get_db_credentials(name)
 
-    print 'Start continuous replication from Cozy to device.'
-    replication.replicate(name, url, name, device_password, device_id,
-                          db_login, db_password, to_local=True)
-    print 'Start continuous replication from device to Cozy.'
-    replication.replicate(name, url, name, device_password, device_id,
-                          db_login, db_password)
+        print 'Start continuous replication from Cozy to device.'
+        replication.replicate(name, url, name, device_password, device_id,
+                              db_login, db_password, to_local=True)
+        print 'Start continuous replication from device to Cozy.'
+        replication.replicate(name, url, name, device_password, device_id,
+                              db_login, db_password)
 
-    print 'Continuous replications started.'
-    print 'Running daemon for binary synchronization...'
-    try:
-        context = local_config.get_daemon_context(name, 'sync')
-        with context:
-            replication.BinaryReplication(name)
-    except KeyboardInterrupt:
-        print ' Binary Synchronization interrupted.'
+        print 'Continuous replications started.'
+        print 'Running daemon for binary synchronization...'
+        try:
+            context = local_config.get_daemon_context(name, 'sync')
+            with context:
+                replication.BinaryReplication(name)
+        except KeyboardInterrupt:
+            print ' Binary Synchronization interrupted.'

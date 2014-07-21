@@ -51,10 +51,9 @@ def main(argv=sys.argv):
         help='Synchronize current device with its remote Cozy.'
     )
     parser_sync.set_defaults(func=actions.sync)
-    parser_sync.add_argument(
-        'name',
-        help='Name of the device to sync'
-    )
+
+    parser_sync.add_argument('name', nargs='*',
+                     help='Name of the device to sync')
 
     # "unsync" action
     parser_kill = subparsers.add_parser(
@@ -69,10 +68,9 @@ def main(argv=sys.argv):
         help='mount folder for current device.'
     )
     parser_mount.set_defaults(func=actions.mount_folder)
-    parser_mount.add_argument(
-        'name',
-        help='Name of the synchronized device to mount'
-    )
+
+    parser_mount.add_argument('name', nargs='*',
+                     help='Name of the synchronized device to mount')
 
     # "unmount" action
     parser_unmount = subparsers.add_parser(
@@ -80,15 +78,27 @@ def main(argv=sys.argv):
         help='unmount folder for current device.'
     )
     parser_unmount.set_defaults(func=actions.unmount_folder)
-    parser_unmount.add_argument(
-        'name',
-        help='Name of the synchronized device to unmount'
-    )
-    parser_unmount.add_argument(
-        '-p',
-        '--path',
-        help='Path to unmount'
-    )
+
+    parser_unmount.add_argument('name', nargs='*',
+                     help='Name of the synchronized device to unmount')
+    parser_unmount.add_argument('-p', '--path',
+                     help='Path to unmount')
+
+    # "set_default" action
+    parser_mount = subparsers.add_parser('set_default',
+                     help='synchronize and mount device at startup')
+    parser_mount.set_defaults(func=actions.set_default)
+
+    parser_mount.add_argument('name',
+                     help='Name of the device to synchronize and mount at startup')
+
+    # "unset_default" action
+    parser_mount = subparsers.add_parser('unset_default',
+                     help='avoid device synchronization and mounting at startup')
+    parser_mount.set_defaults(func=actions.unset_default)
+
+    parser_mount.add_argument('name', nargs='*',
+                     help='Name of the synchronized device to remove from startup')
 
     # "display_config" action
     parser_display_conf = subparsers.add_parser(
