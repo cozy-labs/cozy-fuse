@@ -11,12 +11,12 @@ else:
 
 setup(
     name='cozy-fuse',
-    version='0.1.1',
+    version='0.1.2',
     description='FUSE implementation for Cozy Files',
     author='Cozy Cloud',
     author_email='contact@cozycloud.cc',
-    url='https://github.com/cozy/cozy-fuse-linux',
-    download_url = 'https://github.com/cozy/cozy-fuse-linux/tarball/0.1.1',
+    url='https://github.com/cozy/cozy-fuse',
+    download_url = 'https://github.com/cozy/cozy-fuse/tarball/0.1.2',
     keywords = ['cozy', 'fuse', 'linux', 'osx'],
     license='LGPL',
     install_requires=[

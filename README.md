@@ -1,4 +1,4 @@
-# [Cozy](http://cozy.io) Fuse Linux
+# [Cozy](http://cozy.io) Fuse client
 
 This programs allows you to mount files from your Cozy Files application in
 your file system. This way you can browse and manage them with your favorite
@@ -24,11 +24,11 @@ On OSX:
 
 In a console run:
 
-    (sudo) pip install git+https://@github.com/mycozycloud/cozy-fuse-linux.git
+    (sudo) pip install git+https://@github.com/cozy/cozy-fuse.git
 
 On OSX, if this error occured: `error: command 'cc' failed with exit status 1`, try again with the following command:
 
-    ARCHFLAGS=-Wno-error=unused-command-line-argument-hard-error-in-future pip install git+https://github.com/mycozycloud/cozy-fuse-linux.git
+    ARCHFLAGS=-Wno-error=unused-command-line-argument-hard-error-in-future pip install git+https://github.com/cozy/cozy-fuse.git
 
 On OSX, you must start couchdb in a terminal or daemonize it by yourself:
 
