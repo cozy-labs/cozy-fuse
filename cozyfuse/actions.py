@@ -227,7 +227,7 @@ def configure_new_device(device, url, path):
     print ''
     print 'Let\'s go configuring your new Cozy connection...'
     (db_login, db_password) = dbutils.init_db(device)
-    local_config.add_config(name, url, path, db_login, db_password)
+    local_config.add_config(device, url, path, db_login, db_password)
     print 'Step 1 succeeded: Local configuration created'
     register_device_remotely(device)
     print 'Step 2 succeeded: Device registered remotely.'
