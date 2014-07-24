@@ -14,6 +14,39 @@ import dbutils
 
 from couchdb import Server
 
+def query_yes_no(question, default='yes'):
+    '''
+    Ask a yes/no question via raw_input() and return their answer.
+
+    "question" is a string that is presented to the user.
+    "default" is the presumed answer if the user just hits <Enter>.
+        It must be "yes" (the default), "no" or None (meaning
+        an answer is required of the user).
+
+    The "answer" return value is one of "yes" or "no".
+    '''
+    valid = {"yes": True, "y": True, "ye": True,
+             "no": False, "n": False}
+    if default is None:
+        prompt = " [y/n] "
+    elif default == "yes":
+        prompt = " [Y/n] "
+    elif default == "no":
+        prompt = " [y/N] "
+    else:
+        raise ValueError("invalid default answer: '%s'" % default)
+
+    while True:
+        sys.stdout.write(question + prompt)
+        choice = raw_input().lower()
+        if default is not None and choice == '':
+            return valid[default]
+        elif choice in valid:
+            return valid[choice]
+        else:
+            sys.stdout.write("Please respond with 'yes' or 'no' "
+                             "(or 'y' or 'n').\n")
+
 
 def register_device_remotely(name):
     '''
@@ -186,6 +219,15 @@ def set_default(device):
     '''
     local_config.set_startup_config(device, True)
 
+    if os.geteuid() == 0:
+        # Update rc.d on Debian-like systems
+        if os.path.exists('/etc/debian_version'):
+            subprocess.check_call(['update-rc.d', 'cozy-fuse', 'defaults'])
+    else:
+        print 'Warning: The script is not executed as root'
+        if os.path.exists('/etc/debian_version'):
+            print 'Please execute "sudo update-rc.d cozy-fuse defaults" manually'
+
 
 def unset_default(devices=[]):
     '''
@@ -251,9 +293,18 @@ def configure_new_device(device, url, path):
     print 'Step 3 succeeded: Metadata copied.'
     print ''
     print 'Cozy configuration %s succeeded!' % device
-    print 'Now type "cozy-fuse sync %s" to keep your data synchronized.' % device
-    print 'And type "cozy-fuse mount %s" to see your files in your ' \
-          'filesystem.' % device
+    if query_yes_no('Do you want to start synchronization now ?'):
+        sync([device])
+        mount_folder([device])
+    else:
+        print 'Type "cozy-fuse sync %s" anytime to keep your data synchronized.' % device
+        print 'And type "cozy-fuse mount %s" to see your files in your ' \
+              'filesystem.' % device
+    print ''
+    if query_yes_no('Do you want to start synchronization at system startup ?'):
+        set_default(device)
+    print ''
+    print 'Done!'
 
 
 def sync(devices=[]):
