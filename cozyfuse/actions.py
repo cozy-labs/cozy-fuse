@@ -4,7 +4,7 @@ import errno
 import getpass
 import requests
 import json
-import sys
+import subprocess
 
 import couchmount
 import replication
@@ -293,6 +293,10 @@ def configure_new_device(device, url, path):
     print 'Step 3 succeeded: Metadata copied.'
     print ''
     print 'Cozy configuration %s succeeded!' % device
+    print ''
+    if query_yes_no('Do you want to start synchronization at system startup ?'):
+        set_default(device)
+    print ''
     if query_yes_no('Do you want to start synchronization now ?'):
         sync([device])
         mount_folder([device])
@@ -300,9 +304,6 @@ def configure_new_device(device, url, path):
         print 'Type "cozy-fuse sync %s" anytime to keep your data synchronized.' % device
         print 'And type "cozy-fuse mount %s" to see your files in your ' \
               'filesystem.' % device
-    print ''
-    if query_yes_no('Do you want to start synchronization at system startup ?'):
-        set_default(device)
     print ''
     print 'Done!'
 
