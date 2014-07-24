@@ -1,3 +1,6 @@
+import os
+import sys
+import errno
 import getpass
 import requests
 import json
@@ -146,6 +149,17 @@ def mount_folder(devices=[]):
     for name in devices:
         try:
             (url, path) = local_config.get_config(name)
+            # try to create the directory if it does not exist
+            try:
+                os.makedirs(path)
+            except OSError as e:
+                if e.errno == errno.EACCES:
+                    print 'You do not have sufficient access, try running sudo %s' % (' '.join(sys.argv[:]))
+                    sys.exit(1)
+                elif e.errno == errno.EEXIST:
+                    pass
+                else:
+                    continue
             couchmount.unmount(path)
             couchmount.mount(name, path)
         except KeyboardInterrupt:
