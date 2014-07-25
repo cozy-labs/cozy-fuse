@@ -85,7 +85,7 @@ def main(argv=sys.argv):
     # "mount" action
     parser_mount = subparsers.add_parser(
         'mount',
-        help='mount folder for current device.'
+        help='Mount folder for current device.'
     )
     parser_mount.set_defaults(func=actions.mount_folder)
 
@@ -98,7 +98,7 @@ def main(argv=sys.argv):
     # "unmount" action
     parser_unmount = subparsers.add_parser(
         'unmount',
-        help='unmount folder for current device.'
+        help='Unmount folder for current device.'
     )
     parser_unmount.set_defaults(func=actions.unmount_folder)
 
@@ -115,26 +115,26 @@ def main(argv=sys.argv):
     # "set_default" action
     parser_mount = subparsers.add_parser(
         'set_default',
-        help='synchronize and mount device at startup'
+        help='Select a device by default'
     )
     parser_mount.set_defaults(func=actions.set_default)
 
     parser_mount.add_argument(
         'device',
-        help='Name of the device to synchronize and mount at startup'
+        help='Name of the device to select by default'
     ).completer = DeviceCompleter
 
     # "unset_default" action
     parser_mount = subparsers.add_parser(
         'unset_default',
-        help='avoid device synchronization and mounting at startup'
+        help='Avoid selecting a device by default'
     )
     parser_mount.set_defaults(func=actions.unset_default)
 
     parser_mount.add_argument(
         'devices',
         nargs='*',
-        help='Name of synchronized devices to remove from startup'
+        help='Name of the device to avoid selecting by default'
     ).completer = DeviceCompleter
 
     # "display_config" action

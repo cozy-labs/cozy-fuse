@@ -215,18 +215,9 @@ def unmount_folder(devices=[], path=None):
 def set_default(device):
     '''
     Set configuration parameter for the given device, to synchronize
-    and mount it at startup.
+    and mount it by default.
     '''
     local_config.set_startup_config(device, True)
-
-    if os.geteuid() == 0:
-        # Update rc.d on Debian-like systems
-        if os.path.exists('/etc/debian_version'):
-            subprocess.check_call(['update-rc.d', 'cozy-fuse', 'defaults'])
-    else:
-        print 'Warning: The script is not executed as root'
-        if os.path.exists('/etc/debian_version'):
-            print 'Please execute "sudo update-rc.d cozy-fuse defaults" manually'
 
 
 def unset_default(devices=[]):
@@ -294,7 +285,7 @@ def configure_new_device(device, url, path):
     print ''
     print 'Cozy configuration %s succeeded!' % device
     print ''
-    if query_yes_no('Do you want to start synchronization at system startup ?'):
+    if query_yes_no('Do you want to set this device as the default one ?'):
         set_default(device)
     print ''
     if query_yes_no('Do you want to start synchronization now ?'):
