@@ -4,7 +4,6 @@ This programs allows you to mount files from your Cozy Files application in
 your file system. This way you can browse and manage them with your favorite
 file browser.
 
-
 ## Requirements
 
 To run properly Cozy Fuse requires that you setup:
@@ -45,9 +44,8 @@ Configure your connection with the remote Cozy:
 For example:
 
     cozy-fuse configure https://mycozy.cozycloud.cc laptop /home/me/cozy_sync
-
-Then starts synchronization and mount your target folder (both commands must
-be run at each startup):
+    
+The configurator will ask you if you want to set the newly configured device as "default", and if you want to start the synchronization right away. You will be able to execute it afterward with these commands:
 
     cozy-fuse sync laptop
     (sudo) cozy-fuse mount laptop
