@@ -131,43 +131,43 @@ def set_device_config(name, device_id, device_password):
         logger.info('[Config] Remote data added to config file')
 
 
-def get_startup_config(name):
+def get_default_device_config(name):
     '''
-    Return automatic startup configuration
-    '''
-    config = get_full_config()
-
-    if name not in config:
-        raise NoConfigFound('[Config] No device is registered for %s' % name)
-
-    return 'startup' in config[name] and config[name]['startup']
-
-
-def set_startup_config(name, automatic_startup):
-    '''
-    Set automatic startup configuration
+    Return device's default status
     '''
     config = get_full_config()
 
     if name not in config:
         raise NoConfigFound('[Config] No device is registered for %s' % name)
 
-    config[name]['startup'] = automatic_startup
+    return 'default' in config[name] and config[name]['default']
+
+
+def set_default_device_config(name, set_default):
+    '''
+    Set device as default one
+    '''
+    config = get_full_config()
+
+    if name not in config:
+        raise NoConfigFound('[Config] No device is registered for %s' % name)
+
+    config[name]['default'] = set_default
 
     output_file = file(CONFIG_PATH, 'w')
     dump(config, output_file, default_flow_style=False)
     logger.info('[Config] Remote data added to config file')
 
 
-def get_startup_devices():
+def get_default_devices():
     '''
-    Return a list of devices to synchronize and mount at startup
+    Return a list of devices to synchronize and mount by default
     '''
     config = get_full_config()
 
     if len(config) > 0:
         return [name for name, conf in config.items()
-                if 'startup' in conf and conf['startup']]
+                if 'default' in conf and conf['default']]
     else:
         return []
 

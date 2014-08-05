@@ -177,7 +177,7 @@ def mount_folder(devices=[]):
     Mount folder linked to given device.
     '''
     if len(devices) == 0:
-        devices = local_config.get_startup_devices()
+        devices = local_config.get_default_devices()
 
     for name in devices:
         try:
@@ -204,7 +204,7 @@ def unmount_folder(devices=[], path=None):
     Unmount folder linked to given device.
     '''
     if len(devices) == 0:
-        devices = local_config.get_startup_devices()
+        devices = local_config.get_default_devices()
 
     for name in devices:
         if path is None:
@@ -217,19 +217,19 @@ def set_default(device):
     Set configuration parameter for the given device, to synchronize
     and mount it by default.
     '''
-    local_config.set_startup_config(device, True)
+    local_config.set_default_device_config(device, True)
 
 
 def unset_default(devices=[]):
     '''
     Remove configuration parameter for the given device, to avoid
-    synchronization and mounting at startup
+    synchronization and mounting by default
     '''
     if len(devices) == 0:
-        devices = local_config.get_startup_devices()
+        devices = local_config.get_default_devices()
 
     for name in devices:
-        local_config.set_startup_config(name, False)
+        local_config.set_default_device_config(name, False)
 
 
 def display_config():
@@ -304,7 +304,7 @@ def sync(devices=[]):
     Run continuous synchronization between CouchDB instances.
     '''
     if len(devices) == 0:
-        devices = local_config.get_startup_devices()
+        devices = local_config.get_default_devices()
 
     for name in devices:
         (url, path) = local_config.get_config(name)
