@@ -185,6 +185,7 @@ def mount_folder(devices=[]):
             # try to create the directory if it does not exist
             try:
                 os.makedirs(path)
+                couchmount.unmount(path)
             except OSError as e:
                 if e.errno == errno.EACCES:
                     print 'You do not have sufficient access, try running sudo %s' % (' '.join(sys.argv[:]))
@@ -193,7 +194,6 @@ def mount_folder(devices=[]):
                     pass
                 else:
                     continue
-            couchmount.unmount(path)
             couchmount.mount(name, path)
         except KeyboardInterrupt:
             unmount_folder(name)
