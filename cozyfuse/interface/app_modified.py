@@ -13,5 +13,5 @@ if __name__ == "__main__":
     cozy_frame = CozyFrame(None, wx.ID_ANY, "")
     app.SetTopWindow(cozy_frame)
     cozy_frame.Show()
-    taskBarIcon()
+    TaskBarIcon()
     app.MainLoop()
