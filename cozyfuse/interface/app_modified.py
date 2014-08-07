@@ -3,7 +3,8 @@
 
 import wx
 import gettext
-from CozyFrame import CozyFrame, TaskBarIcon
+from CozyFrame import CozyFrame
+from CozyTray import CozyTray
 
 if __name__ == "__main__":
     gettext.install("app") # replace with the appropriate catalog name
@@ -13,5 +14,5 @@ if __name__ == "__main__":
     cozy_frame = CozyFrame(None, wx.ID_ANY, "")
     app.SetTopWindow(cozy_frame)
     cozy_frame.Show()
-    TaskBarIcon()
+    CozyTray()
     app.MainLoop()
