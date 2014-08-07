@@ -608,7 +608,7 @@ def _path_split(path):
 
 
 def unmount(path):
-    if platform.system() == "Darwin":
+    if platform.system() == "Darwin" or platform.system() == "FreeBSD":
         command = ["umount", path]
     else:
         command = ["fusermount", "-u", path]

@@ -289,8 +289,8 @@ def configure_new_device(device, url, path):
         set_default(device)
     print ''
     if query_yes_no('Do you want to start synchronization now ?'):
-        sync([device])
         mount_folder([device])
+        sync([device])
     else:
         print 'Type "cozy-fuse sync %s" anytime to keep your data synchronized.' % device
         print 'And type "cozy-fuse mount %s" to see your files in your ' \
