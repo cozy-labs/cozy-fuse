@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+import os
+import sys
 import wx
 import gettext
+import socket
+from cozyfuse.local_config import get_full_config, NoConfigFile
 from CozyFrame import CozyFrame
 from CozyTray import CozyTray
 
@@ -11,8 +15,45 @@ if __name__ == "__main__":
 
     app = wx.PySimpleApp(0)
     wx.InitAllImageHandlers()
+
+    # Initialize dialog window and tray menu
     cozy_frame = CozyFrame(None, wx.ID_ANY, "")
+    cozy_tray = CozyTray()
+
+    # Get them know each other
+    cozy_frame.SetMainTray(cozy_tray)
+    cozy_tray.SetMainFrame(cozy_frame)
+
+    # Set the dialog window as top window
     app.SetTopWindow(cozy_frame)
-    cozy_frame.Show()
-    CozyTray()
+
+    try:
+        # Fetch configuration
+        config = get_full_config()
+
+        # Select the first device of the local configuration
+        for key in config:
+            device = key
+            config = config[key]
+            break
+
+        # Fill the dialog window with configuration values
+        cozy_frame.text_device_name.SetValue(device)
+        cozy_frame.text_cozy_password.SetValue('aaaaa')
+        if 'url' in config:
+            cozy_frame.text_cozy_url.SetValue(config['url'])
+        if 'path' in config:
+            cozy_frame.text_sync_folder.SetValue(config['path'])
+
+        cozy_frame.text_device_name.SetValue(socket.gethostname())
+        cozy_frame.text_sync_folder.SetValue('%s/cozy' % (os.path.expanduser("~")))
+
+    except NoConfigFile:
+        # If no config file exists, show the dialog window
+        cozy_frame.Show()
+
+        # Fill the dialog window with default values
+        cozy_frame.text_device_name.SetValue(socket.gethostname())
+        cozy_frame.text_sync_folder.SetValue('%s/cozy' % (os.path.expanduser("~")))
+
     app.MainLoop()
