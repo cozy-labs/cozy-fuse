@@ -9,8 +9,25 @@ import wx
 
 # begin wxGlade: extracode
 import os
+import sys
+import traceback
+import cozyfuse.actions
+import cozyfuse.dbutils
+import cozyfuse.local_config
+from CozyError import CozyError
 # end wxGlade
 
+def show_error(msg):
+    error = CozyError(None, wx.ID_ANY, "")
+    error.error_message.SetLabel(msg)
+    error.Show()
+
+def register_device(device, url, password, path):
+    (db_login, db_password) = cozyfuse.dbutils.init_db(device)
+    cozyfuse.local_config.add_config(device, url, path, db_login, db_password)
+    cozyfuse.actions.register_device_remotely(device, password)
+    if 'device_id' not in cozyfuse.local_config.get_full_config()[device]:
+        show_error(_("An error occured, please check your Cozy URL and password"))
 
 class CozyFrame(wx.Dialog):
     def __init__(self, *args, **kwds):
@@ -41,6 +58,8 @@ class CozyFrame(wx.Dialog):
         self.Bind(wx.EVT_BUTTON, self.discard_configuration_changes, self.button_discard)
         self.Bind(wx.EVT_BUTTON, self.save_configuration_changes, self.button_save)
         # end wxGlade
+
+        self.configured = False
 
     def __set_properties(self):
         # begin wxGlade: CozyFrame.__set_properties
@@ -101,6 +120,9 @@ class CozyFrame(wx.Dialog):
     def SetMainTray(self, tray):
         self.tray = tray
 
+    def SetConfigured(self, configured = True):
+        self.configured = configured
+
     def select_sync_folder(self, event):  # wxGlade: CozyFrame.<event_handler>
         dialog = wx.DirDialog(None, _("Choose an empty folder for the synchronization"))
         if dialog.ShowModal() == wx.ID_OK:
@@ -108,10 +130,7 @@ class CozyFrame(wx.Dialog):
             if os.listdir(path) == []:
                 self.text_sync_folder.SetValue(dialog.GetPath())
             else:
-                from CozyError import CozyError
-                error = CozyError(None, wx.ID_ANY, "")
-                error.error_message.SetLabel(_("The chosen folder is not empty, please choose another one"))
-                error.Show()
+                show_error(_("The specified folder is not empty, please choose another one"))
         event.Skip()
 
     def discard_configuration_changes(self, event):  # wxGlade: CozyFrame.<event_handler>
@@ -119,7 +138,29 @@ class CozyFrame(wx.Dialog):
         event.Skip()
 
     def save_configuration_changes(self, event):  # wxGlade: CozyFrame.<event_handler>
-        print "Event handler 'save_configuration_changes' not implemented!"
-        event.Skip()
+        url = self.text_cozy_url.GetValue()
+        password = self.text_cozy_password.GetValue()
+        device = self.text_device_name.GetValue()
+        path = self.text_sync_folder.GetValue()
+        try:
+            if self.configured:
+                config = cozyfuse.local_config.get_full_config().itervalues().next()
+                if config['url'] != url or config['dblogin'] != device:
+                    cozyfuse.actions.remove_device(config['dblogin'], password)
+                    register_device(device, url, password, path)
+            else:
+                register_device(device, url, password, path)
+
+            # Unmount and unsync existing folder
+            cozyfuse.actions.unmount_folder([device])
+            cozyfuse.actions.kill_running_replications()
+
+            # Mount and sync
+            cozyfuse.actions.mount_folder([device])
+            cozyfuse.actions.sync([device])
+            event.Skip()
+        except Exception, e:
+            print traceback.format_exc()
+            show_error(str(e))
 
 # end of class CozyFrame

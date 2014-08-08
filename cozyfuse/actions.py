@@ -48,27 +48,29 @@ def query_yes_no(question, default='yes'):
                              "(or 'y' or 'n').\n")
 
 
-def register_device_remotely(name):
+def register_device_remotely(name, password=None):
     '''
     Register device to target Cozy
     '''
     (url, path) = local_config.get_config(name)
     # Remove trailing slash
     url = url.rstrip('/')
-    password = getpass.getpass('Type your Cozy password to register your '
+    if password is None:
+        password = getpass.getpass('Type your Cozy password to register your '
                                'device remotely:\n')
     (device_id, device_password) = remote.register_device(name, url,
                                                           path, password)
     local_config.set_device_config(name, device_id, device_password)
 
 
-def remove_device_remotely(name):
+def remove_device_remotely(name, password=None):
     '''
     Delete given device form target Cozy.
     '''
     (url, path) = local_config.get_config(name)
     (device_id, password) = local_config.get_device_config(name)
-    password = getpass.getpass('Type your Cozy password to remove your '
+    if password is None:
+        password = getpass.getpass('Type your Cozy password to register your '
                                'device remotely:\n')
     remote.remove_device(url, device_id, password)
 

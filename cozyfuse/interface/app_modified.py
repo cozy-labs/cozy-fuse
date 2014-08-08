@@ -27,33 +27,29 @@ if __name__ == "__main__":
     # Set the dialog window as top window
     app.SetTopWindow(cozy_frame)
 
-    try:
-        # Fetch configuration
-        config = get_full_config()
+    # Set default values
+    cozy_frame.text_device_name.SetValue(socket.gethostname().replace('.', '_'))
+    cozy_frame.text_sync_folder.SetValue('%s/cozy' % (os.path.expanduser("~")))
 
-        # Select the first device of the local configuration
-        for key in config:
-            device = key
-            config = config[key]
-            break
+    try:
+        # Fetch configuration and select the first device
+        config = get_full_config().itervalues().next()
 
         # Fill the dialog window with configuration values
-        cozy_frame.text_device_name.SetValue(device)
         cozy_frame.text_cozy_password.SetValue('aaaaa')
+        if 'dblogin' in config:
+            cozy_frame.text_device_name.SetValue(config['dblogin'])
         if 'url' in config:
             cozy_frame.text_cozy_url.SetValue(config['url'])
         if 'path' in config:
             cozy_frame.text_sync_folder.SetValue(config['path'])
 
-        cozy_frame.text_device_name.SetValue(socket.gethostname())
-        cozy_frame.text_sync_folder.SetValue('%s/cozy' % (os.path.expanduser("~")))
+        # Indicate that Cozy is already configured to the dialog window
+        if 'deviceid' in config:
+            cozy_frame.SetConfigured(True)
 
     except NoConfigFile:
         # If no config file exists, show the dialog window
         cozy_frame.Show()
-
-        # Fill the dialog window with default values
-        cozy_frame.text_device_name.SetValue(socket.gethostname())
-        cozy_frame.text_sync_folder.SetValue('%s/cozy' % (os.path.expanduser("~")))
 
     app.MainLoop()
