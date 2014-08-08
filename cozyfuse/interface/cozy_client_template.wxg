@@ -48,9 +48,9 @@
                                         <flag>wxEXPAND</flag>
                                         <border>0</border>
                                         <option>0</option>
-                                        <object class="wxStaticText" name="label_informations" base="EditStaticText">
+                                        <object class="wxStaticText" name="label_information" base="EditStaticText">
                                             <attribute>1</attribute>
-                                            <label>Fill bellow fields with your Cozy informations to start the file synchronization.</label>
+                                            <label>Fill bellow fields with your Cozy information to start the file synchronization.</label>
                                         </object>
                                     </object>
                                     <object class="sizeritem">
