@@ -28,6 +28,7 @@ def register_device(device, url, password, path):
     cozyfuse.actions.register_device_remotely(device, password)
     if 'device_id' not in cozyfuse.local_config.get_full_config()[device]:
         show_error(_("An error occured, please check your Cozy URL and password"))
+    cozyfuse.actions.init_replication(device)
 
 class CozyFrame(wx.Dialog):
     def __init__(self, *args, **kwds):
@@ -134,7 +135,6 @@ class CozyFrame(wx.Dialog):
         event.Skip()
 
     def discard_configuration_changes(self, event):  # wxGlade: CozyFrame.<event_handler>
-        print "Event handler 'discard_configuration_changes' not implemented!"
         event.Skip()
 
     def save_configuration_changes(self, event):  # wxGlade: CozyFrame.<event_handler>
