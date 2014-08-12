@@ -7,12 +7,12 @@ import actions
 import local_config
 
 from argparse import RawTextHelpFormatter
-from yaml import load
 
 
-# Implement ArgumentParser class to display help on error
 class DefaultHelpParser(argparse.ArgumentParser):
-
+    '''
+    Implement ArgumentParser class to display help on error
+    '''
     def error(self, message):
         sys.stderr.write('error: %s\n' % message)
         self.print_help()
