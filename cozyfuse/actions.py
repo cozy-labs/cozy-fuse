@@ -1,7 +1,10 @@
+import os
+import sys
+import errno
 import getpass
 import requests
 import json
-import sys
+import subprocess
 
 import couchmount
 import replication
@@ -11,28 +14,63 @@ import dbutils
 
 from couchdb import Server
 
+def query_yes_no(question, default='yes'):
+    '''
+    Ask a yes/no question via raw_input() and return their answer.
 
-def register_device_remotely(name):
+    "question" is a string that is presented to the user.
+    "default" is the presumed answer if the user just hits <Enter>.
+        It must be "yes" (the default), "no" or None (meaning
+        an answer is required of the user).
+
+    The "answer" return value is one of "yes" or "no".
+    '''
+    valid = {"yes": True, "y": True, "ye": True,
+             "no": False, "n": False}
+    if default is None:
+        prompt = " [y/n] "
+    elif default == "yes":
+        prompt = " [Y/n] "
+    elif default == "no":
+        prompt = " [y/N] "
+    else:
+        raise ValueError("invalid default answer: '%s'" % default)
+
+    while True:
+        sys.stdout.write(question + prompt)
+        choice = raw_input().lower()
+        if default is not None and choice == '':
+            return valid[default]
+        elif choice in valid:
+            return valid[choice]
+        else:
+            sys.stdout.write("Please respond with 'yes' or 'no' "
+                             "(or 'y' or 'n').\n")
+
+
+def register_device_remotely(name, password=None):
     '''
     Register device to target Cozy
     '''
     (url, path) = local_config.get_config(name)
     # Remove trailing slash
     url = url.rstrip('/')
-    password = getpass.getpass('Type your Cozy password to register your '
+    if password is None:
+        password = getpass.getpass('Type your Cozy password to register your '
                                'device remotely:\n')
     (device_id, device_password) = remote.register_device(name, url,
                                                           path, password)
     local_config.set_device_config(name, device_id, device_password)
 
 
-def remove_device_remotely(name):
+def remove_device_remotely(name, password=None):
     '''
     Delete given device form target Cozy.
     '''
     (url, path) = local_config.get_config(name)
     (device_id, password) = local_config.get_device_config(name)
-    password = getpass.getpass('Type your Cozy password to remove your '
+    if password is None:
+        password = getpass.getpass('Type your Cozy password to register your '
                                'device remotely:\n')
     remote.remove_device(url, device_id, password)
 
@@ -141,12 +179,23 @@ def mount_folder(devices=[]):
     Mount folder linked to given device.
     '''
     if len(devices) == 0:
-        devices = local_config.get_startup_devices()
+        devices = local_config.get_default_devices()
 
     for name in devices:
         try:
             (url, path) = local_config.get_config(name)
-            couchmount.unmount(path)
+            # try to create the directory if it does not exist
+            try:
+                os.makedirs(path)
+                couchmount.unmount(path)
+            except OSError as e:
+                if e.errno == errno.EACCES:
+                    print 'You do not have sufficient access, try running sudo %s' % (' '.join(sys.argv[:]))
+                    sys.exit(1)
+                elif e.errno == errno.EEXIST:
+                    pass
+                else:
+                    continue
             couchmount.mount(name, path)
         except KeyboardInterrupt:
             unmount_folder(name)
@@ -157,7 +206,7 @@ def unmount_folder(devices=[], path=None):
     Unmount folder linked to given device.
     '''
     if len(devices) == 0:
-        devices = local_config.get_startup_devices()
+        devices = local_config.get_default_devices()
 
     for name in devices:
         if path is None:
@@ -168,21 +217,21 @@ def unmount_folder(devices=[], path=None):
 def set_default(device):
     '''
     Set configuration parameter for the given device, to synchronize
-    and mount it at startup.
+    and mount it by default.
     '''
-    local_config.set_startup_config(device, True)
+    local_config.set_default_device_config(device, True)
 
 
 def unset_default(devices=[]):
     '''
     Remove configuration parameter for the given device, to avoid
-    synchronization and mounting at startup
+    synchronization and mounting by default
     '''
     if len(devices) == 0:
-        devices = local_config.get_startup_devices()
+        devices = local_config.get_default_devices()
 
     for name in devices:
-        local_config.set_startup_config(name, False)
+        local_config.set_default_device_config(name, False)
 
 
 def display_config():
@@ -237,9 +286,19 @@ def configure_new_device(device, url, path):
     print 'Step 3 succeeded: Metadata copied.'
     print ''
     print 'Cozy configuration %s succeeded!' % device
-    print 'Now type "cozy-fuse sync %s" to keep your data synchronized.' % device
-    print 'And type "cozy-fuse mount %s" to see your files in your ' \
-          'filesystem.' % device
+    print ''
+    if query_yes_no('Do you want to set this device as the default one ?'):
+        set_default(device)
+    print ''
+    if query_yes_no('Do you want to start synchronization now ?'):
+        mount_folder([device])
+        sync([device])
+    else:
+        print 'Type "cozy-fuse sync %s" anytime to keep your data synchronized.' % device
+        print 'And type "cozy-fuse mount %s" to see your files in your ' \
+              'filesystem.' % device
+    print ''
+    print 'Done!'
 
 
 def sync(devices=[]):
@@ -247,7 +306,7 @@ def sync(devices=[]):
     Run continuous synchronization between CouchDB instances.
     '''
     if len(devices) == 0:
-        devices = local_config.get_startup_devices()
+        devices = local_config.get_default_devices()
 
     for name in devices:
         (url, path) = local_config.get_config(name)

@@ -328,6 +328,7 @@ class CouchFSDocument(fuse.Fuse):
             new_binary = {"docType": "Binary"}
             binary_id = self.db.create(new_binary)
             self.db.put_attachment(self.db[binary_id], '', filename="file")
+            (mime_type, encoding) = mimetypes.guess_type(path)
 
             rev = self.db[binary_id]["_rev"]
             now = get_current_date()
@@ -341,6 +342,7 @@ class CouchFSDocument(fuse.Fuse):
                     }
                 },
                 "docType": "File",
+                "mime": mime_type,
                 'creationDate': now,
                 'lastModification': now,
             }
@@ -606,7 +608,7 @@ def _path_split(path):
 
 
 def unmount(path):
-    if platform.system() == "Darwin":
+    if platform.system() == "Darwin" or platform.system() == "FreeBSD":
         command = ["umount", path]
     else:
         command = ["fusermount", "-u", path]

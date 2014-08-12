@@ -4,7 +4,6 @@ This programs allows you to mount files from your Cozy Files application in
 your file system. This way you can browse and manage them with your favorite
 file browser.
 
-
 ## Requirements
 
 To run properly Cozy Fuse requires that you setup:
@@ -20,6 +19,11 @@ On OSX:
 * `brew install couchdb` (Homebrew) or `sudo port install couchdb && sudo port update couchdb && sudo port load couchdb` (MacPorts)
 * Download and install [OSXFuse](http://osxfuse.github.io/)
 
+On FreeBSD 10:
+* `sudo pkg install couchdb`
+* `sudo kldload fuse.ko`
+* You will have to run all the cozy-fuse client's command as root in order to make it work properly (for now)
+
 ## Installation
 
 In a console run:
@@ -30,33 +34,32 @@ On OSX, if this error occured: `error: command 'cc' failed with exit status 1`, 
 
     ARCHFLAGS=-Wno-error=unused-command-line-argument-hard-error-in-future pip install git+https://github.com/cozy/cozy-fuse.git
 
-On OSX, you must start couchdb in a terminal or daemonize it by yourself:
+On OSX and FreeBSD, you must start couchdb in a terminal or daemonize it by yourself:
 
     couchdb
-    
-Create an empty sync directory:
-
-    mkdir /home/me/cozy_sync
 
 Configure your connection with the remote Cozy:
 
     cozy-fuse configure <url_of_your_cozy> <name_of_your_device> <sync_directory>
-    
+
 For example:
 
     cozy-fuse configure https://mycozy.cozycloud.cc laptop /home/me/cozy_sync
 
-Then starts synchronization and mount your target folder (both commands must
-be run at each startup):
+The configurator will ask you if you want to set the newly configured device as "default", and if you want to start the synchronization right away. You will be able to execute it afterward with these commands:
 
     cozy-fuse sync laptop
     (sudo) cozy-fuse mount laptop
+
+## Permission issues
 
 On Ubuntu you must add read rights on `/etc/fuse.conf`
 
     (sudo) chmod a+r /etc/fuse.conf
 
-On OSX, you must start CouchDB manually in a terminal, simply type `couchdb`
+On FreeBSD, you may want to get inpiration from this tutorial in order to allow users to mount their own synchronized folder:
+
+http://blog.ataboydesign.com/2014/04/23/freebsd-10-mounting-usb-drive-with-ext4-filesystem/
 
 
 ## Tab completion
