@@ -14,7 +14,7 @@ test -x $DAEMON || exit 0
 
 . /lib/lsb/init-functions
 
-logger "Cozy FUSE clien: Start script executed"
+logger "Cozy FUSE client: start script executed"
 
 case "$1" in
   start)

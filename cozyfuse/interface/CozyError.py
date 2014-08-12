@@ -4,6 +4,7 @@
 #
 
 import wx
+
 # begin wxGlade: dependencies
 # end wxGlade
 
@@ -12,13 +13,18 @@ import wx
 
 
 class CozyError(wx.Dialog):
+
     def __init__(self, *args, **kwds):
         # begin wxGlade: CozyError.__init__
         kwds["style"] = wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP
         wx.Dialog.__init__(self, *args, **kwds)
         self.panel_2 = wx.Panel(self, wx.ID_ANY)
-        self.error_title = wx.StaticText(self.panel_2, wx.ID_ANY, _("Error:"))
-        self.error_message = wx.StaticText(self.panel_2, wx.ID_ANY, _("Error message"))
+        self.error_title = wx.StaticText(
+            self.panel_2, wx.ID_ANY, _("Error:")
+        )
+        self.error_message = wx.StaticText(
+            self.panel_2, wx.ID_ANY, _("Error message")
+        )
         self.button_1 = wx.Button(self.panel_2, wx.ID_CLOSE, "")
 
         self.__set_properties()
@@ -35,7 +41,9 @@ class CozyError(wx.Dialog):
         self.SetIcon(_icon)
         self.SetSize((500, 110))
         self.Hide()
-        self.error_title.SetFont(wx.Font(9, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
+        self.error_title.SetFont(
+            wx.Font(9, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, "")
+        )
         # end wxGlade
 
     def __do_layout(self):

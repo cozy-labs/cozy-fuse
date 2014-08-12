@@ -9,7 +9,6 @@ import wx
 
 # begin wxGlade: extracode
 import os
-import sys
 import traceback
 import cozyfuse.actions
 import cozyfuse.dbutils
@@ -17,47 +16,82 @@ import cozyfuse.local_config
 from CozyError import CozyError
 # end wxGlade
 
+
 def show_error(msg):
     error = CozyError(None, wx.ID_ANY, "")
     error.error_message.SetLabel(msg)
     error.Show()
+
 
 def register_device(device, url, password, path):
     (db_login, db_password) = cozyfuse.dbutils.init_db(device)
     cozyfuse.local_config.add_config(device, url, path, db_login, db_password)
     cozyfuse.actions.register_device_remotely(device, password)
     if 'device_id' not in cozyfuse.local_config.get_full_config()[device]:
-        show_error(_("An error occured, please check your Cozy URL and password"))
+        show_error(
+            _("An error occured, please check your Cozy URL and password"))
     cozyfuse.actions.init_replication(device)
 
+
 class CozyFrame(wx.Dialog):
+
     def __init__(self, *args, **kwds):
         # begin wxGlade: CozyFrame.__init__
         kwds["style"] = wx.DEFAULT_DIALOG_STYLE
         wx.Dialog.__init__(self, *args, **kwds)
         self.panel_1 = wx.Panel(self, wx.ID_ANY)
         self.panel_3 = wx.Panel(self.panel_1, wx.ID_ANY)
-        self.label_information = wx.StaticText(self.panel_3, wx.ID_ANY, _("Fill bellow fields with your Cozy information to start the file synchronization."))
+        self.label_information = wx.StaticText(
+            self.panel_3, wx.ID_ANY,
+            _("Fill bellow fields with your Cozy information to "
+              "start the file synchronization."))
         self.static_line_3 = wx.StaticLine(self.panel_3, wx.ID_ANY)
-        self.label_cozy_url = wx.StaticText(self.panel_3, wx.ID_ANY, _("URL of your Cozy"))
-        self.text_cozy_url = wx.TextCtrl(self.panel_3, wx.ID_ANY, _("https://mycozy.cozycloud.cc"), style=wx.TE_AUTO_URL)
-        self.label_cozy_password = wx.StaticText(self.panel_3, wx.ID_ANY, _("Password of your Cozy"))
-        self.text_cozy_password = wx.TextCtrl(self.panel_3, wx.ID_ANY, "", style=wx.TE_PASSWORD)
-        self.label_device_name = wx.StaticText(self.panel_3, wx.ID_ANY, _("Device name"))
-        self.text_device_name = wx.TextCtrl(self.panel_3, wx.ID_ANY, _("myhost-1234"))
-        self.label_sync_folder = wx.StaticText(self.panel_3, wx.ID_ANY, _("Synchronized folder"))
-        self.text_sync_folder = wx.TextCtrl(self.panel_3, wx.ID_ANY, _("/home/user/sync"))
-        self.button_select_folder = wx.Button(self.panel_3, wx.ID_OPEN, "")
-        self.static_line_2 = wx.StaticLine(self.panel_3, wx.ID_ANY)
-        self.button_discard = wx.Button(self.panel_3, wx.ID_CANCEL, "")
-        self.button_save = wx.Button(self.panel_3, wx.ID_OK, "")
+        self.label_cozy_url = wx.StaticText(
+            self.panel_3, wx.ID_ANY, _("URL of your Cozy"))
+        self.text_cozy_url = wx.TextCtrl(
+            self.panel_3, wx.ID_ANY,
+            _("https://mycozy.cozycloud.cc"),
+            style=wx.TE_AUTO_URL
+        )
+        self.label_cozy_password = wx.StaticText(
+            self.panel_3, wx.ID_ANY, _("Password of your Cozy"))
+        self.text_cozy_password = wx.TextCtrl(
+            self.panel_3, wx.ID_ANY, "", style=wx.TE_PASSWORD)
+        self.label_device_name = wx.StaticText(
+            self.panel_3, wx.ID_ANY, _("Device name"))
+        self.text_device_name = wx.TextCtrl(
+            self.panel_3, wx.ID_ANY, _("myhost-1234"))
+        self.label_sync_folder = wx.StaticText(
+            self.panel_3, wx.ID_ANY, _("Synchronized folder"))
+        self.text_sync_folder = wx.TextCtrl(
+            self.panel_3, wx.ID_ANY, _("/home/user/sync"))
+        self.button_select_folder = wx.Button(
+            self.panel_3, wx.ID_OPEN, "")
+        self.static_line_2 = wx.StaticLine(
+            self.panel_3, wx.ID_ANY)
+        self.button_discard = wx.Button(
+            self.panel_3, wx.ID_CANCEL, "")
+        self.button_save = wx.Button(
+            self.panel_3, wx.ID_OK, "")
 
         self.__set_properties()
         self.__do_layout()
 
-        self.Bind(wx.EVT_BUTTON, self.select_sync_folder, self.button_select_folder)
-        self.Bind(wx.EVT_BUTTON, self.discard_configuration_changes, self.button_discard)
-        self.Bind(wx.EVT_BUTTON, self.save_configuration_changes, self.button_save)
+        self.Bind(
+            wx.EVT_BUTTON,
+            self.select_sync_folder,
+            self.button_select_folder
+        )
+        self.Bind(
+            wx.EVT_BUTTON,
+            self.discard_configuration_changes,
+            self.button_discard
+        )
+        self.Bind(
+            wx.EVT_BUTTON,
+            self.save_configuration_changes,
+            self.button_save
+        )
         # end wxGlade
 
         self.configured = False
@@ -69,14 +103,26 @@ class CozyFrame(wx.Dialog):
         _icon.CopyFromBitmap(wx.Bitmap("icon/icon.png", wx.BITMAP_TYPE_ANY))
         self.SetIcon(_icon)
         self.SetSize((400, 430))
-        self.label_cozy_url.SetFont(wx.Font(9, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
-        self.text_cozy_url.SetToolTipString(_("Indicate the complete URL of your Cozy, do not forget to prepend \"http://\" or \"https://\""))
-        self.label_cozy_password.SetFont(wx.Font(9, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
-        self.text_cozy_password.SetToolTipString(_("This is your Cozy password, used to connect to your Cozy"))
-        self.label_device_name.SetFont(wx.Font(9, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
-        self.text_device_name.SetToolTipString(_("The name of this device to sync. It must contain only lowercase characters, dashes or numbers (e.g. \"my-laptop\")"))
-        self.label_sync_folder.SetFont(wx.Font(9, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
-        self.text_sync_folder.SetToolTipString(_("The folder where your files will appear into. It must be an empty one."))
+        self.label_cozy_url.SetFont(
+            wx.Font(9, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
+        self.text_cozy_url.SetToolTipString(
+            _("Indicate the complete URL of your Cozy, " \
+              "do not forget to prepend \"http://\" or \"https://\""))
+        self.label_cozy_password.SetFont(wx.Font(
+            9, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
+        self.text_cozy_password.SetToolTipString(
+            _("This is your Cozy password, used to connect to your Cozy"))
+        self.label_device_name.SetFont(wx.Font(
+            9, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
+        self.text_device_name.SetToolTipString(
+            _("The name of this device to sync. It must " \
+              "contain only lowercase characters, dashes " \
+              "or numbers (e.g. \"my-laptop\")"))
+        self.label_sync_folder.SetFont(wx.Font(
+            9, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
+        self.text_sync_folder.SetToolTipString(
+            _("The folder where your files will appear " \
+              "into. It must be an empty one."))
         # end wxGlade
 
     def __do_layout(self):
@@ -91,7 +137,8 @@ class CozyFrame(wx.Dialog):
         sizer_4.Add((20, 20), 0, wx.EXPAND, 0)
         sizer_4.Add(self.static_line_3, 0, wx.EXPAND, 0)
         sizer_4.Add((20, 20), 0, wx.EXPAND, 0)
-        sizer_4.Add(self.label_cozy_url, 0, wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 0)
+        sizer_4.Add(
+            self.label_cozy_url, 0, wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 0)
         sizer_4.Add(self.text_cozy_url, 0, wx.EXPAND, 0)
         sizer_4.Add((20, 20), 0, wx.EXPAND, 0)
         sizer_4.Add(self.label_cozy_password, 0, wx.EXPAND, 0)
@@ -106,8 +153,18 @@ class CozyFrame(wx.Dialog):
         sizer_4.Add((20, 20), 0, wx.EXPAND, 0)
         sizer_4.Add(self.static_line_2, 0, wx.EXPAND, 0)
         sizer_4.Add((20, 20), 0, wx.EXPAND, 0)
-        grid_sizer_1.Add(self.button_discard, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL, 0)
-        grid_sizer_1.Add(self.button_save, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL, 0)
+        grid_sizer_1.Add(
+            self.button_discard,
+            0,
+            wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL, 0
+        )
+        grid_sizer_1.Add(
+            self.button_save,
+            0,
+            wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL,
+            0
+        )
+
         sizer_4.Add(grid_sizer_1, 1, wx.EXPAND, 0)
         self.panel_3.SetSizer(sizer_4)
         sizer_2.Add(self.panel_3, 1, wx.EXPAND, 0)
@@ -125,26 +182,34 @@ class CozyFrame(wx.Dialog):
         self.configured = configured
 
     def select_sync_folder(self, event):  # wxGlade: CozyFrame.<event_handler>
-        dialog = wx.DirDialog(None, _("Choose an empty folder for the synchronization"))
+        dialog = wx.DirDialog(
+            None,
+            _("Choose an empty folder for the synchronization")
+        )
         if dialog.ShowModal() == wx.ID_OK:
             path = dialog.GetPath()
             if os.listdir(path) == []:
                 self.text_sync_folder.SetValue(dialog.GetPath())
             else:
-                show_error(_("The specified folder is not empty, please choose another one"))
+                show_error(
+                    _("The specified folder is not empty, please choose another one")
+                )
         event.Skip()
 
-    def discard_configuration_changes(self, event):  # wxGlade: CozyFrame.<event_handler>
+    def discard_configuration_changes(self, event):
+        # wxGlade: CozyFrame.<event_handler>
         event.Skip()
 
-    def save_configuration_changes(self, event):  # wxGlade: CozyFrame.<event_handler>
+    def save_configuration_changes(self, event):
+        # wxGlade: CozyFrame.<event_handler>
         url = self.text_cozy_url.GetValue()
         password = self.text_cozy_password.GetValue()
         device = self.text_device_name.GetValue()
         path = self.text_sync_folder.GetValue()
         try:
             if self.configured:
-                config = cozyfuse.local_config.get_full_config().itervalues().next()
+                config = \
+                    cozyfuse.local_config.get_full_config().itervalues().next()
                 if config['url'] != url or config['dblogin'] != device:
                     cozyfuse.actions.remove_device(config['dblogin'], password)
                     register_device(device, url, password, path)

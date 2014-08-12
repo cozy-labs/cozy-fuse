@@ -2,7 +2,6 @@
 # -*- coding: UTF-8 -*-
 
 import os
-import sys
 import wx
 import gettext
 import socket
@@ -10,8 +9,9 @@ from cozyfuse.local_config import get_full_config, NoConfigFile
 from CozyFrame import CozyFrame
 from CozyTray import CozyTray
 
+
 if __name__ == "__main__":
-    gettext.install("app") # replace with the appropriate catalog name
+    gettext.install("app")  # replace with the appropriate catalog name
 
     app = wx.PySimpleApp(0)
     wx.InitAllImageHandlers()
@@ -28,7 +28,9 @@ if __name__ == "__main__":
     app.SetTopWindow(cozy_frame)
 
     # Set default values
-    cozy_frame.text_device_name.SetValue(socket.gethostname().replace('.', '_'))
+    cozy_frame.text_device_name.SetValue(
+        socket.gethostname().replace('.', '_')
+    )
     cozy_frame.text_sync_folder.SetValue('%s/cozy' % (os.path.expanduser("~")))
 
     try:

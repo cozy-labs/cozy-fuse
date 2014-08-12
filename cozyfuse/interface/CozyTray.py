@@ -15,6 +15,7 @@ def create_menu_item(menu, label, func):
     menu.AppendItem(item)
     return item
 
+
 class CozyTray(wx.TaskBarIcon):
     def __init__(self):
         super(CozyTray, self).__init__()

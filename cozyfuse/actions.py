@@ -4,7 +4,6 @@ import errno
 import getpass
 import requests
 import json
-import subprocess
 
 import couchmount
 import replication
@@ -13,6 +12,7 @@ import remote
 import dbutils
 
 from couchdb import Server
+
 
 def query_yes_no(question, default='yes'):
     '''
@@ -57,7 +57,7 @@ def register_device_remotely(name, password=None):
     url = url.rstrip('/')
     if password is None:
         password = getpass.getpass('Type your Cozy password to register your '
-                               'device remotely:\n')
+                                   'device remotely:\n')
     (device_id, device_password) = remote.register_device(name, url,
                                                           path, password)
     local_config.set_device_config(name, device_id, device_password)
@@ -71,7 +71,7 @@ def remove_device_remotely(name, password=None):
     (device_id, password) = local_config.get_device_config(name)
     if password is None:
         password = getpass.getpass('Type your Cozy password to register your '
-                               'device remotely:\n')
+                                   'device remotely:\n')
     remote.remove_device(url, device_id, password)
 
 
@@ -190,7 +190,8 @@ def mount_folder(devices=[]):
                 couchmount.unmount(path)
             except OSError as e:
                 if e.errno == errno.EACCES:
-                    print 'You do not have sufficient access, try running sudo %s' % (' '.join(sys.argv[:]))
+                    print 'You do not have sufficient access, ' \
+                          'try running sudo %s' % (' '.join(sys.argv[:]))
                     sys.exit(1)
                 elif e.errno == errno.EEXIST:
                     pass
@@ -294,7 +295,8 @@ def configure_new_device(device, url, path):
         mount_folder([device])
         sync([device])
     else:
-        print 'Type "cozy-fuse sync %s" anytime to keep your data synchronized.' % device
+        print 'Type "cozy-fuse sync %s" anytime to keep (' \
+              'your data synchronized.' % device
         print 'And type "cozy-fuse mount %s" to see your files in your ' \
               'filesystem.' % device
     print ''
