@@ -68,9 +68,9 @@ def remove_device_remotely(name, password=None):
     Delete given device form target Cozy.
     '''
     (url, path) = local_config.get_config(name)
-    (device_id, password) = local_config.get_device_config(name)
+    (device_id, device_password) = local_config.get_device_config(name)
     if password is None:
-        password = getpass.getpass('Type your Cozy password to register your '
+        password = getpass.getpass('Type your Cozy password to remove your '
                                'device remotely:\n')
     remote.remove_device(url, device_id, password)
 
