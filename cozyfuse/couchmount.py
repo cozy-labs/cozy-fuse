@@ -9,6 +9,7 @@
 # you should have received as part of this distribution.
 
 import os
+import sys
 import platform
 import errno
 import fuse
@@ -17,9 +18,9 @@ import subprocess
 import logging
 import datetime
 import calendar
+import mimetypes
 
 import dbutils
-import replication
 import local_config
 
 from couchdb import ResourceNotFound
@@ -136,6 +137,7 @@ class CouchFSDocument(fuse.Fuse):
         it arrives.
         """
         path = _normalize_path(path)
+
         # this two folders are conventional in Unix system.
         for directory in '.', '..':
             yield fuse.Direntry(directory)
@@ -148,11 +150,12 @@ class CouchFSDocument(fuse.Fuse):
 
     def getattr(self, path):
         """
-        Return file descriptor for given_path. Useful for 'ls -la' command like.
+        Return file descriptor for given_path. Useful for 'ls -la' command
+        like.
         """
+        path = _normalize_path(path)
         try:
             logger.debug('getattr %s' % path)
-
             st = CouchStat()
 
             # Path is root
@@ -208,7 +211,6 @@ class CouchFSDocument(fuse.Fuse):
         """
         path = _normalize_path(path)
         try:
-            logger.info('open %s' % path)
             res = self.db.view('file/byFullPath', key=path)
             if len(res) > 0:
                 logger.info('%s found' % path)
@@ -443,7 +445,6 @@ class CouchFSDocument(fuse.Fuse):
         """
         try:
             path = _normalize_path(path)
-            logger.info('rmdir %s' % path)
             folder = dbutils.get_folder(self.db, path)
             self.db.delete(self.db[folder['_id']])
             return 0
@@ -576,8 +577,8 @@ class CouchFSDocument(fuse.Fuse):
         Update parent folder
             parent_folder {string}: parent folder path
 
-        When a file or a folder is renamed/created/removed, last modification date
-        of parent folder should be updated
+        When a file or a folder is renamed/created/removed, last modification
+        date of parent folder should be updated
 
         """
         folder = dbutils.get_folder(self.db, parent_folder)
@@ -591,7 +592,9 @@ def _normalize_path(path):
     Remove trailing slash and/or empty path part.
     ex: /home//user/ becomes /home/user
     '''
-    path = u'/'.join([part for part in path.split(u'/') if part != u''])
+    parts = path.split('/')
+    parts = [part for part in parts if part != '']
+    path = '/'.join(parts)
     if len(path) == 0:
         return ''
     else:
@@ -600,6 +603,7 @@ def _normalize_path(path):
 
 def _path_split(path):
     '''
+    Split folder path and file name.
     '''
     _normalize_path(path)
     (folder_path, name) = os.path.split(path)
@@ -609,6 +613,9 @@ def _path_split(path):
 
 
 def unmount(path):
+    '''
+    Unmount folder given Fuse folder.
+    '''
     if platform.system() == "Darwin" or platform.system() == "FreeBSD":
         command = ["umount", path]
     else:
@@ -619,16 +626,10 @@ def unmount(path):
     logger.info('Folder %s unmounted' % path)
 
 
-def start_sync():
-    print 'Continuous replications started.'
-    print 'Running daemon for binary synchronization...'
-    name = 'sync'
-    context = local_config.get_daemon_context(name, 'sync')
-    with context:
-        replication.BinaryReplication(name)
-
-
 def mount(name, path):
+    '''
+    Mount given folder corresponding to given device.
+    '''
     logger.info('Attempt to mount %s' % path)
     fs = CouchFSDocument(name, path, 'http://localhost:5984/%s' % name)
     fs.multithreaded = 0
