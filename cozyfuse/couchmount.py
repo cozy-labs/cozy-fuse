@@ -17,7 +17,6 @@ import subprocess
 import logging
 import datetime
 import calendar
-import urlparse
 import requests
 
 import dbutils
@@ -134,9 +133,10 @@ class CouchFSDocument(fuse.Fuse):
         )
         logger.info('- Replication configured')
 
-        # configure cache
-        self.writeBuffers = {}
+        # Configure cache
 
+        self.writeBuffers = {}
+        # Create cache folder
         self.cache_path = os.path.join(CONFIG_FOLDER, database, 'cache')
         if not os.path.isdir(self.cache_path):
             os.mkdir(self.cache_path)
@@ -254,7 +254,7 @@ class CouchFSDocument(fuse.Fuse):
             path = _normalize_path(path)
             file_doc = dbutils.get_file(self.db, path)
             binary_id = file_doc["binary"]["file"]["id"]
-            binary_attachment = self.get_file(binary_id)
+            binary_attachment = self.get_file(binary_id, file_doc)
 
             if binary_attachment is None:
                 logger.info('No attachment for this binary')
@@ -287,6 +287,7 @@ class CouchFSDocument(fuse.Fuse):
 
         filename = os.path.join(cache_file_folder, 'file')
         if not os.path.isfile(filename):
+
             url = '%s/%s/%s' % (self.rep_target, binary_id, 'file')
             req = requests.get(url, stream=True)
             with open(filename, 'wb') as fd:
