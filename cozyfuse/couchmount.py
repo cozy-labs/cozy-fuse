@@ -9,7 +9,6 @@
 # you should have received as part of this distribution.
 
 import os
-import sys
 import platform
 import errno
 import fuse
@@ -18,12 +17,15 @@ import subprocess
 import logging
 import datetime
 import calendar
-import mimetypes
+import urlparse
+import requests
 
 import dbutils
 import local_config
 
-from couchdb import ResourceNotFound
+#import sys
+#import mimetypes
+#from couchdb import ResourceNotFound
 
 DEVNULL = open(os.devnull, 'wb')
 
@@ -96,23 +98,26 @@ class CouchFSDocument(fuse.Fuse):
         '''
         Configure file system, database and store remote Cozy informations.
         '''
-        logger.info('Mounting folder...')
+        logger.info('Configuring CouchDB Fuse...')
 
         # Configure fuse
         fuse.Fuse.__init__(self, *args, **kwargs)
         self.fuse_args.mountpoint = mountpoint
         self.fuse_args.add('allow_other')
         self.currentFile = None
+        logger.info('- Fuse configured')
 
         # Configure database
         self.database = database
         (self.db, self.server) = dbutils.get_db_and_server(database)
+        logger.info('- Database configured')
 
         # Configure Cozy
         device = dbutils.get_device(database)
         self.urlCozy = device['url']
         self.passwordCozy = device['password']
         self.loginCozy = device['login']
+        logger.info('- Cozy configured')
 
         # Configure replication urls.
         (self.db_username, self.db_password) = \
@@ -127,9 +132,15 @@ class CouchFSDocument(fuse.Fuse):
             self.passwordCozy,
             self.urlCozy.split('/')[2]
         )
+        logger.info('- Replication configured')
 
-        # init cache
+        # configure cache
         self.writeBuffers = {}
+
+        self.cache_path = os.path.join(CONFIG_FOLDER, database, 'cache')
+        if not os.path.isdir(self.cache_path):
+            os.mkdir(self.cache_path)
+        logger.info('- Cache configured')
 
     def readdir(self, path, offset):
         """
@@ -137,12 +148,14 @@ class CouchFSDocument(fuse.Fuse):
         it arrives.
         """
         path = _normalize_path(path)
+        logger.info('readdir %s' % path)
 
         # this two folders are conventional in Unix system.
         for directory in '.', '..':
             yield fuse.Direntry(directory)
         res = self.db.view('file/byFolder', key=path)
         for doc in res:
+            logger.info(doc)
             yield fuse.Direntry(doc.value['name'].encode('utf-8'))
         res = self.db.view('folder/byFolder', key=path)
         for doc in res:
@@ -153,9 +166,11 @@ class CouchFSDocument(fuse.Fuse):
         Return file descriptor for given_path. Useful for 'ls -la' command
         like.
         """
-        path = _normalize_path(path)
+        #logger.info('getattr %s' % path)
+        #path = _normalize_path(path)
+        #logger.info('getattr normalized %s' % path)
+
         try:
-            logger.debug('getattr %s' % path)
             st = CouchStat()
 
             # Path is root
@@ -209,6 +224,7 @@ class CouchFSDocument(fuse.Fuse):
             path {string}: file path
             flags {string}: opening mode
         """
+        logger.info('open %s' % path)
         path = _normalize_path(path)
         try:
             res = self.db.view('file/byFullPath', key=path)
@@ -226,41 +242,59 @@ class CouchFSDocument(fuse.Fuse):
     def read(self, path, size, offset):
         """
         Return content of file located at given path.
+        Extract it from remote Cozy and save it in a cache folder.
             path {string}: file path
             size {integer}: size of file part to read
             offset {integer}: beginning of file part to read
         """
         # TODO: do not load the file for each chunk.
-        # Save it in a cache file maybe?.
+        # Save it in a cache file maybe?
         try:
-            path = _normalize_path(path)
             logger.info('read %s' % path)
+            path = _normalize_path(path)
             file_doc = dbutils.get_file(self.db, path)
             binary_id = file_doc["binary"]["file"]["id"]
-            binary_attachment = self.db.get_attachment(binary_id, "file")
-            logger.info(binary_id)
+            binary_attachment = self.get_file(binary_id)
 
             if binary_attachment is None:
                 logger.info('No attachment for this binary')
-                return ''
+                return -errno.ENOENT
 
             else:
-                content = binary_attachment.read()
-                content_length = len(content)
+                logger.info('Perform read on file of binary %s' % binary_id)
+                content_length = os.fstat(binary_attachment.fileno()).st_size
                 if offset < content_length:
                     if offset + size > content_length:
                         size = content_length - offset
-                    buf = content[offset:offset + size]
+                    binary_attachment.seek(offset)
+                    buf = binary_attachment.read(size)
 
                 else:
                     buf = ''
                     logger.info('Empty file content')
 
+                binary_attachment.close()
                 return buf
 
         except Exception as e:
             logger.exception(e)
             return -errno.ENOENT
+
+    def get_file(self, binary_id):
+        cache_file_folder = os.path.join(self.cache_path, binary_id)
+        if not os.path.isdir(cache_file_folder):
+            os.mkdir(cache_file_folder)
+
+        filename = os.path.join(cache_file_folder, 'file')
+        if not os.path.isfile(filename):
+            url = '%s/%s/%s' % (self.rep_target, binary_id, 'file')
+            req = requests.get(url, stream=True)
+            with open(filename, 'wb') as fd:
+                for chunk in req.iter_content(1024):
+                    fd.write(chunk)
+
+        return open(filename, 'rb')
+
 
     def write(self, path, buf, offset):
         """
@@ -268,6 +302,7 @@ class CouchFSDocument(fuse.Fuse):
             path {string}: file path
             buf {buffer}: data to write
         """
+        logger.info('write %s' % path)
         return errno.EACCES
         #path = _normalize_path(path)
         #logger.info('write %s' % path)
@@ -286,32 +321,33 @@ class CouchFSDocument(fuse.Fuse):
             to an open file: all file descriptors are closed and
             all memory mappings are unmapped.
         """
-        return errno.EACCES
-        #try:
-            #path = _normalize_path(path)
-            #logger.info('release file %s' % path)
-            #file_doc = dbutils.get_file(self.db, path)
-            #binary_id = file_doc["binary"]["file"]["id"]
+        logger.info('release %s' % path)
+        return 0
+        try:
+            path = _normalize_path(path)
+            logger.info('release file %s' % path)
+            file_doc = dbutils.get_file(self.db, path)
+            binary_id = file_doc["binary"]["file"]["id"]
 
-            #if path in self.writeBuffers:
-                #data = self.writeBuffers[path]
-                #self.db.put_attachment(self.db[binary_id],
-                                       #data,
-                                       #filename="file")
-                #file_doc['size'] = len(data)
-                #file_doc['lastModification'] = get_current_date()
-                #self.writeBuffers.pop(path, None)
+            if path in self.writeBuffers:
+                data = self.writeBuffers[path]
+                self.db.put_attachment(self.db[binary_id],
+                                       data,
+                                       filename="file")
+                file_doc['size'] = len(data)
+                file_doc['lastModification'] = get_current_date()
+                self.writeBuffers.pop(path, None)
 
-                #binary = self.db[binary_id]
-                #file_doc['binary']['file']['rev'] = binary['_rev']
-                #self.db.save(file_doc)
+                binary = self.db[binary_id]
+                file_doc['binary']['file']['rev'] = binary['_rev']
+                self.db.save(file_doc)
 
-            #logger.info("release is done")
-            #return 0
+            logger.info("release is done")
+            return 0
 
-        #except Exception as e:
-            #logger.exception(e)
-            #return -errno.ENOENT
+        except Exception as e:
+            logger.exception(e)
+            return -errno.ENOENT
 
     def mknod(self, path, mode, dev):
         """
@@ -324,6 +360,7 @@ class CouchFSDocument(fuse.Fuse):
                  major and minor numbers of the newly created device special
                  file
         """
+        logger.info('mknod %s' % path)
         return errno.EACCES
         #try:
             #path = _normalize_path(path)
@@ -366,6 +403,7 @@ class CouchFSDocument(fuse.Fuse):
         Remove file from database.
         """
 
+        logger.info('unlink %s' % path)
         return errno.EACCES
         #try:
             #path = _normalize_path(path)
@@ -415,6 +453,7 @@ class CouchFSDocument(fuse.Fuse):
             path {string}: diretory path
             mode {string}: directory permissions
         """
+        logger.info('mkdir %s' % path)
         return errno.EACCES
         #try:
             #(folder_path, name) = _path_split(path)
@@ -448,6 +487,7 @@ class CouchFSDocument(fuse.Fuse):
         Delete folder from database.
             path {string}: diretory path
         """
+        logger.info('rmdir %s' % path)
         return errno.EACCES
         #try:
             #path = _normalize_path(path)
@@ -463,6 +503,7 @@ class CouchFSDocument(fuse.Fuse):
         """
         Rename file and subfiles (if it's a folder) in database.
         """
+        logger.info('rename %s' % pathfrom)
         return errno.EACCES
         #logger.info("path rename %s -> %s: " % (pathfrom, pathto))
         #pathfrom = _normalize_path(pathfrom)
@@ -640,4 +681,5 @@ def mount(name, path):
     logger.info('Attempt to mount %s' % path)
     fs = CouchFSDocument(name, path, 'http://localhost:5984/%s' % name)
     fs.multithreaded = 0
+    logger.info('CouchDB Fuse configured for %s' % path)
     fs.main()
