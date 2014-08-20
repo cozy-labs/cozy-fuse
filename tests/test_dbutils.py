@@ -20,9 +20,11 @@ TESTDB = 'cozy-fuse-test'
 
 @pytest.fixture(scope="module")
 def config_db(request):
-    filename = local_config.CONFIG_PATH
-    with file(filename, 'a'):
-        os.utime(filename, None)
+    # Create config folder and YAML file if not exist
+    if not os.path.isdir(local_config.CONFIG_FOLDER):
+        os.mkdir(local_config.CONFIG_FOLDER)
+    with open(local_config.CONFIG_PATH, 'a'):
+        os.utime(local_config.CONFIG_PATH, None)
 
     name = TESTDB
     url = 'https://localhost:2223'
