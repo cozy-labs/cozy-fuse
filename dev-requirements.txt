@@ -9,4 +9,3 @@ cython
 pyyaml
 argparse
 argcomplete
-kivy
