@@ -164,6 +164,36 @@ def main(argv=sys.argv):
     )
     parser_reset.set_defaults(func=actions.reset)
 
+    # "cache_file" action
+    parser_cache_file = subparsers.add_parser(
+        'cache_file',
+        help='Cache given file on disk'
+    )
+    parser_cache_file.add_argument(
+        'device',
+        help='The device concerned by caching'
+    )
+    parser_cache_file.add_argument(
+        'path',
+        help='Path of file to cache'
+    )
+    parser_cache_file.set_defaults(func=actions.cache_file)
+
+    # "cache_file" action
+    parser_cache_folder = subparsers.add_parser(
+        'cache_folder',
+        help='Cache given file on disk'
+    )
+    parser_cache_folder.add_argument(
+        'device',
+        help='The device concerned by caching'
+    )
+    parser_cache_folder.add_argument(
+        'path',
+        help='Path of folder to cache'
+    )
+    parser_cache_folder.set_defaults(func=actions.cache_folder)
+
     # Initialize autocompletion
     argcomplete.autocomplete(parser)
 

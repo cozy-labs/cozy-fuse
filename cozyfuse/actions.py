@@ -1,9 +1,11 @@
 import os
 import sys
+import shutil
 import errno
 import getpass
 import requests
 import json
+import filecache
 
 import couchmount
 import replication
@@ -145,7 +147,9 @@ def remove_device(device):
     dbutils.remove_db(device)
     dbutils.remove_db_user(device)
 
+    # Remove device from config file
     local_config.remove_config(device)
+
     print 'Configuration %s successfully removed.' % device
 
 
@@ -233,6 +237,79 @@ def unset_default(devices=[]):
 
     for name in devices:
         local_config.set_default_device_config(name, False)
+
+
+def cache_file(device, path):
+    '''
+    Download target file from remote Cozy to local cache.
+    '''
+
+    # Get configuration.
+    (device_url, device_mount_path) = local_config.get_config(device)
+    (device_id, device_password) = local_config.get_device_config(device)
+
+    # Built target device url.
+    device_url = "https://%s:%s@%s/cozy" % (
+        device,
+        device_password,
+        device_url.split('/')[2]
+    )
+
+    # Ensure that path corresponds to a mounted file.
+    abs_path = os.path.abspath(path)
+    device_mount_path = os.path.abspath(device_mount_path)
+    device_mount_path_len = len(device_mount_path)
+    device_config_path = os.path.join(local_config.CONFIG_FOLDER, device)
+
+    print "Start %s caching." % abs_path
+    if abs_path[:device_mount_path_len] == device_mount_path:
+
+        binary_cache = filecache.BinaryCache(
+            device, device_config_path, device_url, device_mount_path)
+        binary_cache.cache_file_by_path(path)
+        print "File %s successfully cached." % abs_path
+
+    else:
+        print "Wrong path, that doesn't match any file in your device folder"
+
+
+
+def cache_folder(device, path):
+    '''
+    Download target file from remote Cozy to local folder.
+    '''
+
+    # Get configuration.
+    (device_url, device_mount_path) = local_config.get_config(device)
+    (device_id, device_password) = local_config.get_device_config(device)
+
+    # Built target device url.
+    device_url = "https://%s:%s@%s/cozy" % (
+        device,
+        device_password,
+        device_url.split('/')[2]
+    )
+
+    # Ensure that path corresponds to a mounted folder.
+    abs_path = os.path.abspath(path)
+    device_mount_path = os.path.abspath(device_mount_path)
+    device_mount_path_len = len(device_mount_path)
+    device_config_path = os.path.join(local_config.CONFIG_FOLDER, device)
+
+    print "Start %s caching folder." % abs_path
+
+    if abs_path[:device_mount_path_len] == device_mount_path:
+
+        # Cache object
+        binary_cache = filecache.BinaryCache(
+            device, device_config_path, device_url, device_mount_path)
+
+        # Walk through given folder and run cache operation on each file found.
+        for (dirpath, dirnames, filenames) in os.walk(abs_path):
+            for filename in filenames:
+                file_path = os.path.join(dirpath, filename)
+                binary_cache.cache_file_by_path(file_path)
+                print "File %s successfully cached." % file_path
 
 
 def display_config():

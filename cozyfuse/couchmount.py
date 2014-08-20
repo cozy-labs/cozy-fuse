@@ -17,9 +17,9 @@ import subprocess
 import logging
 import datetime
 import calendar
-import requests
 
 import dbutils
+import filecache
 import local_config
 
 #import sys
@@ -89,13 +89,13 @@ class CouchStat(fuse.Stat):
 class CouchFSDocument(fuse.Fuse):
 
     '''
-    Fuse implementation behavior: handles synchronisation with database when a
+    Fuse implementation behavior: handles synchronisation with device when a
     change occurs or when users want to access to his/her file system.
    '''
 
-    def __init__(self, database, mountpoint, uri=None, *args, **kwargs):
+    def __init__(self, device_name, mountpoint, uri=None, *args, **kwargs):
         '''
-        Configure file system, database and store remote Cozy informations.
+        Configure file system, device and store remote Cozy informations.
         '''
         logger.info('Configuring CouchDB Fuse...')
 
@@ -106,13 +106,13 @@ class CouchFSDocument(fuse.Fuse):
         self.currentFile = None
         logger.info('- Fuse configured')
 
-        # Configure database
-        self.database = database
-        (self.db, self.server) = dbutils.get_db_and_server(database)
+        # Configure device
+        self.device = device_name
+        (self.db, self.server) = dbutils.get_db_and_server(device_name)
         logger.info('- Database configured')
 
         # Configure Cozy
-        device = dbutils.get_device(database)
+        device = dbutils.get_device(device_name)
         self.urlCozy = device['url']
         self.passwordCozy = device['password']
         self.loginCozy = device['login']
@@ -120,26 +120,25 @@ class CouchFSDocument(fuse.Fuse):
 
         # Configure replication urls.
         (self.db_username, self.db_password) = \
-            local_config.get_db_credentials(database)
+            local_config.get_db_credentials(device_name)
         self.rep_source = 'http://%s:%s@localhost:5984/%s' % (
             self.db_username,
             self.db_password,
-            self.database
+            self.device
         )
         self.rep_target = "https://%s:%s@%s/cozy" % (
             self.loginCozy,
             self.passwordCozy,
             self.urlCozy.split('/')[2]
         )
+        logger.info(self.rep_target)
         logger.info('- Replication configured')
 
-        # Configure cache
-
+        # Configure cache and create required folders
         self.writeBuffers = {}
-        # Create cache folder
-        self.cache_path = os.path.join(CONFIG_FOLDER, database, 'cache')
-        if not os.path.isdir(self.cache_path):
-            os.mkdir(self.cache_path)
+        device_path = os.path.join(CONFIG_FOLDER, device_name)
+        self.binary_cache =  filecache.BinaryCache(
+            device_name, device_path, self.rep_target, mountpoint)
         logger.info('- Cache configured')
 
     def readdir(self, path, offset):
@@ -155,7 +154,6 @@ class CouchFSDocument(fuse.Fuse):
             yield fuse.Direntry(directory)
         res = self.db.view('file/byFolder', key=path)
         for doc in res:
-            logger.info(doc)
             yield fuse.Direntry(doc.value['name'].encode('utf-8'))
         res = self.db.view('folder/byFolder', key=path)
         for doc in res:
@@ -254,13 +252,17 @@ class CouchFSDocument(fuse.Fuse):
             path = _normalize_path(path)
             file_doc = dbutils.get_file(self.db, path)
             binary_id = file_doc["binary"]["file"]["id"]
-            binary_attachment = self.get_file(binary_id, file_doc)
+            binary_attachment = self.binary_cache.get_binary(binary_id, file_doc)
 
             if binary_attachment is None:
                 logger.info('No attachment for this binary')
                 return -errno.ENOENT
 
             else:
+                if self.device not in file_doc['storage']:
+                    self.binary_cache.mark_file_as_stored(
+                        self.db, file_doc, self.device)
+
                 logger.info('Perform read on file of binary %s' % binary_id)
                 content_length = os.fstat(binary_attachment.fileno()).st_size
                 if offset < content_length:
@@ -280,23 +282,6 @@ class CouchFSDocument(fuse.Fuse):
             logger.exception(e)
             return -errno.ENOENT
 
-    def get_file(self, binary_id):
-        cache_file_folder = os.path.join(self.cache_path, binary_id)
-        if not os.path.isdir(cache_file_folder):
-            os.mkdir(cache_file_folder)
-
-        filename = os.path.join(cache_file_folder, 'file')
-        if not os.path.isfile(filename):
-
-            url = '%s/%s/%s' % (self.rep_target, binary_id, 'file')
-            req = requests.get(url, stream=True)
-            with open(filename, 'wb') as fd:
-                for chunk in req.iter_content(1024):
-                    fd.write(chunk)
-
-        return open(filename, 'rb')
-
-
     def write(self, path, buf, offset):
         """
         Write data in file located at given path.
@@ -314,7 +299,7 @@ class CouchFSDocument(fuse.Fuse):
 
     def release(self, path, fuse_file_info):
         """
-        Save file to database and launch replication to remote Cozy.
+        Save file to device and launch replication to remote Cozy.
             path {string}: file path
             fuse_file_info {struct}: information about open file
 
@@ -353,8 +338,8 @@ class CouchFSDocument(fuse.Fuse):
     def mknod(self, path, mode, dev):
         """
         Create special/ordinary file. Since it's a new file, the file and
-        and the binary metadata are created in the database. Then file is saved
-        as an attachment to the database.
+        and the binary metadata are created in the device. Then file is saved
+        as an attachment to the device.
             path {string}: file path
             mode {string}: file permissions
             dev: if the file type is S_IFCHR or S_IFBLK, dev specifies the
@@ -401,7 +386,7 @@ class CouchFSDocument(fuse.Fuse):
 
     def unlink(self, path):
         """
-        Remove file from database.
+        Remove file from device.
         """
 
         logger.info('unlink %s' % path)
@@ -450,7 +435,7 @@ class CouchFSDocument(fuse.Fuse):
 
     def mkdir(self, path, mode):
         """
-        Create folder in the database.
+        Create folder in the device.
             path {string}: diretory path
             mode {string}: directory permissions
         """
@@ -485,7 +470,7 @@ class CouchFSDocument(fuse.Fuse):
 
     def rmdir(self, path):
         """
-        Delete folder from database.
+        Delete folder from device.
             path {string}: diretory path
         """
         logger.info('rmdir %s' % path)
@@ -502,7 +487,7 @@ class CouchFSDocument(fuse.Fuse):
 
     def rename(self, pathfrom, pathto, root=True):
         """
-        Rename file and subfiles (if it's a folder) in database.
+        Rename file and subfiles (if it's a folder) in device.
         """
         logger.info('rename %s' % pathfrom)
         return errno.EACCES
@@ -587,7 +572,7 @@ class CouchFSDocument(fuse.Fuse):
         the kernel that the info is not available.
         """
         disk_space = dbutils.get_disk_space(
-            self.database,
+            self.device,
             self.urlCozy,
             self.loginCozy,
             self.passwordCozy)
