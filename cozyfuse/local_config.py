@@ -43,9 +43,8 @@ def add_config(name, url, path, db_login, db_password):
 
     else:
         # Create config file if it doesn't exist
-        if not os.path.isfile(CONFIG_PATH):
-            with file(CONFIG_PATH, 'a'):
-                os.utime(CONFIG_PATH, None)
+        with open(CONFIG_PATH, 'a'):
+            os.utime(CONFIG_PATH, None)
 
         config = get_full_config()
         config[name] = {
