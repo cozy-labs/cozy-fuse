@@ -9,3 +9,5 @@ cython
 pyyaml
 argparse
 argcomplete
+ipython
+debug
