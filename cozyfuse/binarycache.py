@@ -1,9 +1,13 @@
 import os
 import shutil
 import requests
+import datetime
 
 import dbutils
+import cache
 
+
+ATTR_VALIDITY_PERIOD = datetime.timedelta(seconds=5 * 60)
 
 class BinaryCache:
     '''
@@ -21,18 +25,28 @@ class BinaryCache:
         self.cache_path = os.path.join(device_config_path, 'cache')
         self.device_mount_path = device_mount_path
         self.db = dbutils.get_db(self.name)
+        self.metadata_cache = cache.Cache(ATTR_VALIDITY_PERIOD)
 
         if not os.path.isdir(self.cache_path):
             os.makedirs(self.cache_path)
+
+    def get_file_metadata(self, path):
+        res = self.metadata_cache.get(path)
+        if res is None:
+            file_doc = dbutils.get_file(self.db, path)
+            binary_id = file_doc["binary"]["file"]["id"]
+            cache_file_folder = os.path.join(self.cache_path, binary_id)
+            cache_file_name = os.path.join(cache_file_folder, 'file')
+
+            res = (file_doc, binary_id, cache_file_name)
+            self.metadata_cache.add(path, res)
+        return res
 
     def is_cached(self, path):
         '''
         Return True is the file is already present in the cache folder.
         '''
-        file_doc = dbutils.get_file(self.db, path)
-        binary_id = file_doc["binary"]["file"]["id"]
-        cache_file_folder = os.path.join(self.cache_path, binary_id)
-        filename = os.path.join(cache_file_folder, 'file')
+        (file_doc, binary_id, filename) = self.get_file_metadata(path)
 
         return os.path.exists(filename)
 
@@ -40,12 +54,7 @@ class BinaryCache:
         '''
         Returns the required file from the cache (local file system).
         '''
-        file_doc = dbutils.get_file(self.db, path)
-        binary_id = file_doc["binary"]["file"]["id"]
-        cache_file_folder = os.path.join(self.cache_path, binary_id)
-
-        # Path for target file.
-        filename = os.path.join(cache_file_folder, 'file')
+        (file_doc, binary_id, filename) = self.get_file_metadata(path)
 
         return open(filename, 'rb')
 
@@ -54,39 +63,29 @@ class BinaryCache:
         Download binary from local CouchDB and save it in the cache folder.
         File is marked as stored in the file metadata.
         '''
-        file_doc = dbutils.get_file(self.db, path)
-        binary_id = file_doc["binary"]["file"]["id"]
+        (file_doc, binary_id, filename) = self.get_file_metadata(path)
         cache_file_folder = os.path.join(self.cache_path, binary_id)
 
-        # Path for target file.
-        filename = os.path.join(cache_file_folder, 'file')
+        # Create cache folder for given binary
+        if not os.path.isdir(cache_file_folder):
+            os.mkdir(cache_file_folder)
 
-        if not self.is_cached(path):
+        # Download file.
+        url = '%s/%s/%s' % (self.remote_url, binary_id, 'file')
+        req = requests.get(url, stream=True)
+        with open(filename, 'wb') as fd:
+            for chunk in req.iter_content(1024):
+                fd.write(chunk)
 
-            # Create cache folder for given binary
-            if not os.path.isdir(cache_file_folder):
-                os.mkdir(cache_file_folder)
-
-            # Download file.
-            url = '%s/%s/%s' % (self.remote_url, binary_id, 'file')
-            req = requests.get(url, stream=True)
-            with open(filename, 'wb') as fd:
-                for chunk in req.iter_content(1024):
-                    fd.write(chunk)
-
-            # Update metadata.
-            file_doc['size'] = os.path.getsize(filename)
-            self.mark_file_as_stored(file_doc)
-
-        self.get(path)
+        # Update metadata.
+        file_doc['size'] = os.path.getsize(filename)
+        self.mark_file_as_stored(file_doc)
 
     def remove(self, path):
         '''
         Remove file from cache.
         '''
-        db = dbutils.get_db(self.name)
-        file_doc = dbutils.get_file(db, path)
-        binary_id = file_doc["binary"]["file"]["id"]
+        (file_doc, binary_id, filename) = self.get_file_metadata(path)
 
         cache_file_folder = os.path.join(self.cache_path, binary_id)
         shutil.rmtree(cache_file_folder)
