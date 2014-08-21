@@ -194,6 +194,36 @@ def main(argv=sys.argv):
     )
     parser_cache_folder.set_defaults(func=actions.cache_folder)
 
+    # "cache_file" action
+    parser_uncache_file = subparsers.add_parser(
+        'uncache_file',
+        help='Clear cache for given file on disk'
+    )
+    parser_uncache_file.add_argument(
+        'device',
+        help='The device concerned by caching'
+    )
+    parser_uncache_file.add_argument(
+        'path',
+        help='Path of file to clear cache from'
+    )
+    parser_uncache_file.set_defaults(func=actions.uncache_file)
+
+    # "cache_file" action
+    parser_uncache_folder = subparsers.add_parser(
+        'uncache_folder',
+        help='Clear cache for given folder on disk'
+    )
+    parser_uncache_folder.add_argument(
+        'device',
+        help='The device concerned by caching'
+    )
+    parser_uncache_folder.add_argument(
+        'path',
+        help='Path of folder to clear cache from'
+    )
+    parser_uncache_folder.set_defaults(func=actions.uncache_folder)
+
     # Initialize autocompletion
     argcomplete.autocomplete(parser)
 

@@ -238,7 +238,7 @@ def unset_default(devices=[]):
         local_config.set_default_device_config(name, False)
 
 
-def cache_file(device, path):
+def cache_file(device, path, add=True):
     '''
     Download target file from remote Cozy to local cache.
     '''
@@ -267,15 +267,25 @@ def cache_file(device, path):
     if abs_path[:device_mount_path_len] == device_mount_path:
         binary_cache = binarycache.BinaryCache(
             device, device_config_path, device_url, device_mount_path)
-        binary_cache.add(path)
-        print "File %s successfully cached." % abs_path
+        if add:
+            binary_cache.add(path)
+            print "File %s successfully cached." % abs_path
+        else:
+            binary_cache.remove(path)
+            print "File %s successfully uncached." % abs_path
 
     else:
         print "Wrong path, that doesn't match any file in your device folder"
 
 
+def uncache_file(device, path):
+    '''
+    Remove target file from local cache.
+    '''
+    cache_file(device, path, False)
 
-def cache_folder(device, path):
+
+def cache_folder(device, path, add=True):
     '''
     Download target file from remote Cozy to local folder.
     '''
@@ -298,7 +308,11 @@ def cache_folder(device, path):
     device_mount_path_len = len(device_mount_path)
     device_config_path = os.path.join(local_config.CONFIG_FOLDER, device)
 
-    print "Start %s caching folder." % abs_path
+    if add:
+        print "Start %s caching folder." % abs_path
+    else:
+        print "Start %s uncaching folder." % abs_path
+
     if abs_path[:device_mount_path_len] == device_mount_path:
 
         # Cache object
@@ -311,10 +325,22 @@ def cache_folder(device, path):
                 file_path = os.path.join(dirpath, filename)
                 file_path = file_path[device_mount_path_len:]
                 file_path = couchmount._normalize_path(file_path)
-                binary_cache.add(file_path)
-                print "File %s successfully cached." % file_path
+
+                if add:
+                    binary_cache.add(file_path)
+                    print "File %s successfully cached." % file_path
+                else:
+                    binary_cache.remove(file_path)
+                    print "File %s successfully uncached." % file_path
     else:
         print 'This is not a folder synchronized with your Cozy'
+
+
+def uncache_folder(device, path):
+    '''
+    Remove target folder from local cache.
+    '''
+    cache_folder(device, path, False)
 
 
 def display_config():
