@@ -19,12 +19,8 @@ import datetime
 import calendar
 
 import dbutils
-import filecache
+import binarycache
 import local_config
-
-#import sys
-#import mimetypes
-#from couchdb import ResourceNotFound
 
 DEVNULL = open(os.devnull, 'wb')
 
@@ -137,7 +133,7 @@ class CouchFSDocument(fuse.Fuse):
         # Configure cache and create required folders
         self.writeBuffers = {}
         device_path = os.path.join(CONFIG_FOLDER, device_name)
-        self.binary_cache =  filecache.BinaryCache(
+        self.binary_cache =  binarycache.BinaryCache(
             device_name, device_path, self.rep_source, mountpoint)
         logger.info('- Cache configured')
 
@@ -242,38 +238,27 @@ class CouchFSDocument(fuse.Fuse):
             size {integer}: size of file part to read
             offset {integer}=: beginning of file part to read
         """
-        # TODO: do not load the file for each chunk.
-        # Save it in a cache file maybe?
         try:
-            logger.info('read %s' % path)
+            logger.info('Perform read on %s' % path)
             path = _normalize_path(path)
-            file_doc = dbutils.get_file(self.db, path)
-            binary_id = file_doc["binary"]["file"]["id"]
-            binary_attachment = self.binary_cache.get_binary(binary_id, file_doc)
 
-            if binary_attachment is None:
-                logger.info('No attachment for this binary')
-                return -errno.ENOENT
+            if not self.binary_cache.is_cached(path):
+                self.binary_cache.add(path)
+
+            binary_attachment = self.binary_cache.get(path)
+            content_length = os.fstat(binary_attachment.fileno()).st_size
+
+            if offset < content_length:
+                if offset + size > content_length:
+                    size = content_length - offset
+                binary_attachment.seek(offset)
+                buf = binary_attachment.read(size)
 
             else:
-                if not 'storage' in file_doc or self.device not in file_doc['storage']:
-                    self.binary_cache.mark_file_as_stored(
-                        self.db, file_doc, self.device)
+                buf = ''
 
-                logger.info('Perform read on file of binary %s' % binary_id)
-                content_length = os.fstat(binary_attachment.fileno()).st_size
-                if offset < content_length:
-                    if offset + size > content_length:
-                        size = content_length - offset
-                    binary_attachment.seek(offset)
-                    buf = binary_attachment.read(size)
-
-                else:
-                    buf = ''
-                    logger.info('Empty file content')
-
-                binary_attachment.close()
-                return buf
+            binary_attachment.close()
+            return buf
 
         except Exception as e:
             logger.exception(e)

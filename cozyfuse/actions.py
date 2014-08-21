@@ -1,11 +1,10 @@
 import os
 import sys
-import shutil
 import errno
 import getpass
 import requests
 import json
-import filecache
+import binarycache
 
 import couchmount
 import replication
@@ -261,12 +260,14 @@ def cache_file(device, path):
     device_mount_path = os.path.abspath(device_mount_path)
     device_mount_path_len = len(device_mount_path)
     device_config_path = os.path.join(local_config.CONFIG_FOLDER, device)
+    path = abs_path[device_mount_path_len:]
+    path = couchmount._normalize_path(path)
 
     print "Start %s caching." % abs_path
     if abs_path[:device_mount_path_len] == device_mount_path:
-        binary_cache = filecache.BinaryCache(
+        binary_cache = binarycache.BinaryCache(
             device, device_config_path, device_url, device_mount_path)
-        binary_cache.cache_file_by_path(path)
+        binary_cache.add(path)
         print "File %s successfully cached." % abs_path
 
     else:
@@ -298,19 +299,22 @@ def cache_folder(device, path):
     device_config_path = os.path.join(local_config.CONFIG_FOLDER, device)
 
     print "Start %s caching folder." % abs_path
-
     if abs_path[:device_mount_path_len] == device_mount_path:
 
         # Cache object
-        binary_cache = filecache.BinaryCache(
+        binary_cache = binarycache.BinaryCache(
             device, device_config_path, device_url, device_mount_path)
 
         # Walk through given folder and run cache operation on each file found.
         for (dirpath, dirnames, filenames) in os.walk(abs_path):
             for filename in filenames:
                 file_path = os.path.join(dirpath, filename)
-                binary_cache.cache_file_by_path(file_path)
+                file_path = file_path[device_mount_path_len:]
+                file_path = couchmount._normalize_path(file_path)
+                binary_cache.add(file_path)
                 print "File %s successfully cached." % file_path
+    else:
+        print 'This is not a folder synchronized with your Cozy'
 
 
 def display_config():
