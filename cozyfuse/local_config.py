@@ -1,4 +1,5 @@
 import os
+import shutil
 import daemon
 import lockfile
 import logging
@@ -72,7 +73,8 @@ def remove_config(name):
 
     folder = os.path.join(CONFIG_FOLDER, name)
     if os.path.isdir(folder):
-        os.rmdir(folder)
+        # Remove cache folder
+        shutil.rmtree(os.path.join(CONFIG_FOLDER, name), True)
     logger.info('[Config] Configuration for %s removed' % name)
 
 
@@ -177,7 +179,6 @@ def get_db_credentials(name):
     Extract DB credentials from config file.
     '''
     config = get_full_config()
-
     if name not in config:
         raise NoConfigFound('[Config] No device is registered for %s' % name)
     else:

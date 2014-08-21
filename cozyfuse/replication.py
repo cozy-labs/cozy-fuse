@@ -1,11 +1,12 @@
 import json
 import requests
 import logging
+import time
 
 import dbutils
 import local_config
 
-from couchdb import Server
+from couchdb import Server, http
 
 logger = logging.getLogger(__name__)
 local_config.configure_logger(logger)
@@ -127,53 +128,76 @@ class BinaryReplication():
         '''
         Replicate all changes related to files and binaries to stored devices.
         '''
-
         device = dbutils.get_device(self.db_name)
         self.urlCozy = device['url']
         self.loginCozy = device['login']
         self.passwordCozy = device['password']
 
-        self.ids = {}
-        for res in self.db.view("file/all"):
-            if 'binary' in res.value and 'file' in res.value['binary']:
-                id_binary = res.value['binary']['file']['id']
-                if id_binary in self.db:
-                    binary = self.db[id_binary]
-                    self.ids[res.id] = [id_binary, binary.rev]
-                else:
-                    self.ids[res.id] = [id_binary, ""]
+        # Initialize sequence number to avoid full replication
+        # every time.
+        if 'seq' not in device:
+            device['seq'] = 0
+        new_seq = device['seq']
 
-        changes = self.db.changes(feed='continuous',
-                                  heartbeat='1000',
-                                  since=device['change'],
-                                  include_docs=True)
+        # We create an infinite loop which will get file changes
+        # every 10 seconds, and fetch related binaries if needed.
+        while True:
+            changes = self.db.changes(since=device['seq'],
+                                      filter='file/all')
 
-        for line in changes:
-            if not self._is_device(line):
-                device['change'] = line['seq']
+            binary_ids = []
+
+            # Iterate over changes
+            for line in changes['results']:
+
+                # Save last sequence number
+                new_seq = line['seq']
+
+                try:
+                    # Find related binary and add its ID to the list
+                    # of files to replicate.
+                    doc = self.db[line['id']]
+                    if self._is_new(line):
+                        logger.info("Creating file %s..." % doc['name'])
+                    else:
+                        logger.info("Updating file %s..." % doc['name'])
+                    if 'binary' in doc:
+                        binary_ids.append(doc['binary']['file']['id'])
+
+                except http.ResourceNotFound:
+                    if self._is_deleted(line):
+                        logger.info("Deleting file %s..." % line['id'])
+                        #TODO: Find document's attachments for previous
+                        # revisions.
+                        continue
+
+            # Replicate related binaries
+            if len(binary_ids) > 0:
+                try:
+                    self._replicate_to_local(binary_ids)
+                except http.ResourceConflict:
+                    #TODO: Handle comparison
+                    pass
+                except:
+                    logging.exception(
+                        'An error occured while replicating doc %s'
+                        % line['id']
+                    )
+
+            # Save last sequence number along with the device
+            if new_seq != device['seq']:
+                device = dbutils.get_device(self.db_name)
+                device['seq'] = new_seq
                 self.db.save(device)
 
-                if self._is_deleted(line):
-                    self._delete_file(line)
-                elif self._is_new(line):
-                    self._add_file(line)
-                else:
-                    self._update_file(line)
-
-    def _is_device(self, line):
-        '''
-        Return true if *line* is a document and its doctype is "Device".
-        '''
-        try:
-            return str(line['doc']['docType']) == "Device"
-        except:
-            return False
+            # Wait until further potential changes
+            time.sleep(10)
 
     def _is_new(self, line):
         '''
         Document is considered as new if its revision starts by "1-"
         '''
-        return line['doc']['_rev'][0:2] == "1-"
+        return line['changes'][0]['rev'][0:2] == "1-"
 
     def _is_deleted(self, line):
         '''
@@ -181,80 +205,6 @@ class BinaryReplication():
         '''
         return 'deleted' in line and line['deleted'] and \
                line['deleted'] is True
-
-    def _add_file(self, line):
-        '''
-        If line is a document of which document type is 'File', then the
-        binary document linked to this document is replicated
-        '''
-        try:
-            id_doc = line['doc']['_id']
-            doc = self.db[id_doc]
-
-            if 'docType' in doc:
-
-                if doc['docType'] == 'File':
-                    logger.info("Creating file %s..." % doc["name"])
-
-                    if 'binary' in doc:
-                        binary = doc['binary']['file']
-                        self.ids[id_doc] = [binary['id'], binary['rev']]
-                        self._replicate_to_local([binary['id']])
-
-                    elif not id_doc in self.ids:
-                        self.ids[id_doc] = ["", ""]
-
-                    logger.info("File created: %s" % doc["name"])
-
-        except Exception:
-            logging.exception(
-                'An error occured while replicating creation for:'
-                'doc %s' % line['doc']['_id']
-            )
-
-    def _delete_file(self, line):
-        '''
-        Remove binary document if a file has been deleted.
-        '''
-        try:
-            id_doc = self.ids.get(line['doc']['_id'])
-
-            if id_doc is not None:
-                binary = self.ids[line['doc']['_id']][0]
-
-                if self.db[binary]:
-                    self.db.delete(self.db[binary])
-                    self._replicate_to_local([binary])
-        except Exception:
-            logging.exception(
-                'An error occured while replicating deletion for:'
-                'doc %s' % line['doc']['_id']
-            )
-
-    def _update_file(self, line):
-        '''
-        If a file document has been modified the linked binary is replicated.
-        '''
-        try:
-            id_doc = line['doc']['_id']
-            doc = self.db[id_doc]
-
-            if 'docType' in doc:
-
-                if doc['docType'] == 'File':
-                    logger.info("Updating file %s..." % doc["name"])
-                    binary = doc['binary']['file']
-
-                    if binary['rev'] != self.ids[id_doc][1]:
-                        self.ids[id_doc] = [binary['id'], binary['rev']]
-                        self._replicate_to_local([binary['id']])
-                    logger.info("File updated: %s" % doc["name"])
-
-        except Exception:
-            logging.exception(
-                'An error occured while replicating update for:'
-                'doc %s' % line['doc']['_id']
-            )
 
     def _replicate_to_local(self, ids):
         '''

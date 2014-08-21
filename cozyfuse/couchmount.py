@@ -9,7 +9,6 @@
 # you should have received as part of this distribution.
 
 import os
-import sys
 import platform
 import errno
 import fuse
@@ -18,12 +17,10 @@ import subprocess
 import logging
 import datetime
 import calendar
-import mimetypes
 
 import dbutils
+import binarycache
 import local_config
-
-from couchdb import ResourceNotFound
 
 DEVNULL = open(os.devnull, 'wb')
 
@@ -88,48 +85,57 @@ class CouchStat(fuse.Stat):
 class CouchFSDocument(fuse.Fuse):
 
     '''
-    Fuse implementation behavior: handles synchronisation with database when a
+    Fuse implementation behavior: handles synchronisation with device when a
     change occurs or when users want to access to his/her file system.
    '''
 
-    def __init__(self, database, mountpoint, uri=None, *args, **kwargs):
+    def __init__(self, device_name, mountpoint, uri=None, *args, **kwargs):
         '''
-        Configure file system, database and store remote Cozy informations.
+        Configure file system, device and store remote Cozy informations.
         '''
-        logger.info('Mounting folder...')
+        logger.info('Configuring CouchDB Fuse...')
 
         # Configure fuse
         fuse.Fuse.__init__(self, *args, **kwargs)
         self.fuse_args.mountpoint = mountpoint
         self.fuse_args.add('allow_other')
         self.currentFile = None
+        logger.info('- Fuse configured')
 
-        # Configure database
-        self.database = database
-        (self.db, self.server) = dbutils.get_db_and_server(database)
+        # Configure device
+        self.device = device_name
+        (self.db, self.server) = dbutils.get_db_and_server(device_name)
+        logger.info('- Database configured')
 
         # Configure Cozy
-        device = dbutils.get_device(database)
+        device = dbutils.get_device(device_name)
         self.urlCozy = device['url']
         self.passwordCozy = device['password']
         self.loginCozy = device['login']
+        logger.info('- Cozy configured')
 
         # Configure replication urls.
         (self.db_username, self.db_password) = \
-            local_config.get_db_credentials(database)
+            local_config.get_db_credentials(device_name)
         self.rep_source = 'http://%s:%s@localhost:5984/%s' % (
             self.db_username,
             self.db_password,
-            self.database
+            self.device
         )
         self.rep_target = "https://%s:%s@%s/cozy" % (
             self.loginCozy,
             self.passwordCozy,
             self.urlCozy.split('/')[2]
         )
+        logger.info(self.rep_target)
+        logger.info('- Replication configured')
 
-        # init cache
+        # Configure cache and create required folders
         self.writeBuffers = {}
+        device_path = os.path.join(CONFIG_FOLDER, device_name)
+        self.binary_cache =  binarycache.BinaryCache(
+            device_name, device_path, self.rep_source, mountpoint)
+        logger.info('- Cache configured')
 
     def readdir(self, path, offset):
         """
@@ -153,9 +159,11 @@ class CouchFSDocument(fuse.Fuse):
         Return file descriptor for given_path. Useful for 'ls -la' command
         like.
         """
-        path = _normalize_path(path)
+        #logger.info('getattr %s' % path)
+        #path = _normalize_path(path)
+        #logger.info('getattr normalized %s' % path)
+
         try:
-            logger.debug('getattr %s' % path)
             st = CouchStat()
 
             # Path is root
@@ -184,8 +192,6 @@ class CouchFSDocument(fuse.Fuse):
                     if file_doc is not None:
                         st.st_mode = stat.S_IFREG | 0o664
                         st.st_nlink = 1
-                        # TODO: if size is not set, get the binary
-                        # and save the information.
                         st.st_size = file_doc.get('size', 4096)
                         if 'lastModification' in file_doc:
                             st.st_atime = \
@@ -209,6 +215,7 @@ class CouchFSDocument(fuse.Fuse):
             path {string}: file path
             flags {string}: opening mode
         """
+        logger.info('open %s' % path)
         path = _normalize_path(path)
         try:
             res = self.db.view('file/byFullPath', key=path)
@@ -226,37 +233,32 @@ class CouchFSDocument(fuse.Fuse):
     def read(self, path, size, offset):
         """
         Return content of file located at given path.
+        Extract it from remote Cozy and save it in a cache folder.
             path {string}: file path
             size {integer}: size of file part to read
-            offset {integer}: beginning of file part to read
+            offset {integer}=: beginning of file part to read
         """
-        # TODO: do not load the file for each chunk.
-        # Save it in a cache file maybe?.
         try:
+            logger.info('Perform read on %s' % path)
             path = _normalize_path(path)
-            logger.info('read %s' % path)
-            file_doc = dbutils.get_file(self.db, path)
-            binary_id = file_doc["binary"]["file"]["id"]
-            binary_attachment = self.db.get_attachment(binary_id, "file")
-            logger.info(binary_id)
 
-            if binary_attachment is None:
-                logger.info('No attachment for this binary')
-                return ''
+            if not self.binary_cache.is_cached(path):
+                self.binary_cache.add(path)
+
+            binary_attachment = self.binary_cache.get(path)
+            content_length = os.fstat(binary_attachment.fileno()).st_size
+
+            if offset < content_length:
+                if offset + size > content_length:
+                    size = content_length - offset
+                binary_attachment.seek(offset)
+                buf = binary_attachment.read(size)
 
             else:
-                content = binary_attachment.read()
-                content_length = len(content)
-                if offset < content_length:
-                    if offset + size > content_length:
-                        size = content_length - offset
-                    buf = content[offset:offset + size]
+                buf = ''
 
-                else:
-                    buf = ''
-                    logger.info('Empty file content')
-
-                return buf
+            binary_attachment.close()
+            return buf
 
         except Exception as e:
             logger.exception(e)
@@ -268,16 +270,18 @@ class CouchFSDocument(fuse.Fuse):
             path {string}: file path
             buf {buffer}: data to write
         """
-        path = _normalize_path(path)
         logger.info('write %s' % path)
-        if path not in self.writeBuffers:
-            self.writeBuffers[path] = ''
-        self.writeBuffers[path] = self.writeBuffers[path] + buf
-        return len(buf)
+        return errno.EACCES
+        #path = _normalize_path(path)
+        #logger.info('write %s' % path)
+        #if path not in self.writeBuffers:
+            #self.writeBuffers[path] = ''
+        #self.writeBuffers[path] = self.writeBuffers[path] + buf
+        #return len(buf)
 
     def release(self, path, fuse_file_info):
         """
-        Save file to database and launch replication to remote Cozy.
+        Save file to device and launch replication to remote Cozy.
             path {string}: file path
             fuse_file_info {struct}: information about open file
 
@@ -285,6 +289,8 @@ class CouchFSDocument(fuse.Fuse):
             to an open file: all file descriptors are closed and
             all memory mappings are unmapped.
         """
+        logger.info('release %s' % path)
+        return 0
         try:
             path = _normalize_path(path)
             logger.info('release file %s' % path)
@@ -314,84 +320,88 @@ class CouchFSDocument(fuse.Fuse):
     def mknod(self, path, mode, dev):
         """
         Create special/ordinary file. Since it's a new file, the file and
-        and the binary metadata are created in the database. Then file is saved
-        as an attachment to the database.
+        and the binary metadata are created in the device. Then file is saved
+        as an attachment to the device.
             path {string}: file path
             mode {string}: file permissions
             dev: if the file type is S_IFCHR or S_IFBLK, dev specifies the
                  major and minor numbers of the newly created device special
                  file
         """
-        try:
-            path = _normalize_path(path)
-            logger.info('mknod %s' % path)
-            (file_path, name) = _path_split(path)
+        logger.info('mknod %s' % path)
+        return errno.EACCES
+        #try:
+            #path = _normalize_path(path)
+            #logger.info('mknod %s' % path)
+            #(file_path, name) = _path_split(path)
 
-            file_path = _normalize_path(file_path)
-            new_binary = {"docType": "Binary"}
-            binary_id = self.db.create(new_binary)
-            self.db.put_attachment(self.db[binary_id], '', filename="file")
-            (mime_type, encoding) = mimetypes.guess_type(path)
+            #file_path = _normalize_path(file_path)
+            #new_binary = {"docType": "Binary"}
+            #binary_id = self.db.create(new_binary)
+            #self.db.put_attachment(self.db[binary_id], '', filename="file")
+            #(mime_type, encoding) = mimetypes.guess_type(path)
 
-            rev = self.db[binary_id]["_rev"]
-            now = get_current_date()
-            newFile = {
-                "name": name,
-                "path": _normalize_path(file_path),
-                "binary": {
-                    "file": {
-                        "id": binary_id,
-                        "rev": rev
-                    }
-                },
-                "docType": "File",
-                "mime": mime_type,
-                'creationDate': now,
-                'lastModification': now,
-            }
-            self.db.create(newFile)
-            logger.info("file created")
-            self._update_parent_folder(newFile['path'])
-            logger.info('mknod is done for %s' % path)
-            return 0
-        except Exception as e:
-            logger.exception(e)
-            return -errno.ENOENT
+            #rev = self.db[binary_id]["_rev"]
+            #now = get_current_date()
+            #newFile = {
+                #"name": name,
+                #"path": _normalize_path(file_path),
+                #"binary": {
+                    #"file": {
+                        #"id": binary_id,
+                        #"rev": rev
+                    #}
+                #},
+                #"docType": "File",
+                #"mime": mime_type,
+                #'creationDate': now,
+                #'lastModification': now,
+            #}
+            #self.db.create(newFile)
+            #logger.info("file created")
+            #self._update_parent_folder(newFile['path'])
+            #logger.info('mknod is done for %s' % path)
+            #return 0
+        #except Exception as e:
+            #logger.exception(e)
+            #return -errno.ENOENT
 
     def unlink(self, path):
         """
-        Remove file from database.
+        Remove file from device.
         """
 
-        try:
-            path = _normalize_path(path)
-            logger.info('unlink %s' % path)
-            parts = path.rsplit(u'/', 1)
-            if len(parts) == 1:
-                dirname, filename = u'', parts[0]
-            else:
-                dirname, filename = parts
+        logger.info('unlink %s' % path)
+        return errno.EACCES
+        #try:
+            #path = _normalize_path(path)
+            #logger.info('unlink %s' % path)
+            #parts = path.rsplit(u'/', 1)
+            #if len(parts) == 1:
+                #dirname, filename = u'', parts[0]
+            #else:
+                #dirname, filename = parts
 
-            file_doc = dbutils.get_file(self.db, path)
-            if file_doc is not None:
-                binary_id = file_doc["binary"]["file"]["id"]
-                logger.info(self.db[file_doc["_id"]])
+            #file_doc = dbutils.get_file(self.db, path)
+            #if file_doc is not None:
+                #binary_id = file_doc["binary"]["file"]["id"]
+                #logger.info(self.db[file_doc["_id"]])
 
-                try:
-                    self.db.delete(self.db[binary_id])
-                except ResourceNotFound:
-                    pass
-                self.db.delete(self.db[file_doc["_id"]])
-                logger.info('file %s removed' % path)
-                self._update_parent_folder(file_doc['path'])
-                return 0
-            else:
-                logger.warn('Cannot delete file, no entry found')
-                return -errno.ENOENT
+                #try:
+                    #self.db.delete(self.db[binary_id])
+                #except ResourceNotFound:
+                    #pass
+                #self.db.delete(self.db[file_doc["_id"]])
+                #logger.info('file %s removed' % path)
+                #self._update_parent_folder(file_doc['path'])
+                #return 0
+            #else:
+                #logger.warn('Cannot delete file, no entry found')
+                #return -errno.ENOENT
 
-        except Exception as e:
-            logger.exception(e)
-            return -errno.ENOENT
+        #except Exception as e:
+            #logger.exception(e)
+            #return -errno.ENOENT
 
     def truncate(self, path, size):
         """ TODO: look if something should be done there.
@@ -407,110 +417,116 @@ class CouchFSDocument(fuse.Fuse):
 
     def mkdir(self, path, mode):
         """
-        Create folder in the database.
+        Create folder in the device.
             path {string}: diretory path
             mode {string}: directory permissions
         """
-        try:
-            (folder_path, name) = _path_split(path)
-            folder_path = _normalize_path(folder_path)
-            path = _normalize_path(path)
-            now = get_current_date()
+        logger.info('mkdir %s' % path)
+        return errno.EACCES
+        #try:
+            #(folder_path, name) = _path_split(path)
+            #folder_path = _normalize_path(folder_path)
+            #path = _normalize_path(path)
+            #now = get_current_date()
 
-            logger.info('create new dir %s' % path)
-            folder = dbutils.get_folder(self.db, path)
-            if folder is not None:
-                logger.info('folder already exists %s' % path)
-                return -errno.EEXIST
-            else:
-                self.db.create({
-                    "name": name,
-                    "path": folder_path,
-                    "docType": "Folder",
-                    'creationDate': now,
-                    'lastModification': now,
-                })
+            #logger.info('create new dir %s' % path)
+            #folder = dbutils.get_folder(self.db, path)
+            #if folder is not None:
+                #logger.info('folder already exists %s' % path)
+                #return -errno.EEXIST
+            #else:
+                #self.db.create({
+                    #"name": name,
+                    #"path": folder_path,
+                    #"docType": "Folder",
+                    #'creationDate': now,
+                    #'lastModification': now,
+                #})
 
-                self._update_parent_folder(folder_path)
-                return 0
+                #self._update_parent_folder(folder_path)
+                #return 0
 
-        except Exception as e:
-            logger.exception(e)
-            return -errno.EEXIST
+        #except Exception as e:
+            #logger.exception(e)
+            #return -errno.EEXIST
 
     def rmdir(self, path):
         """
-        Delete folder from database.
+        Delete folder from device.
             path {string}: diretory path
         """
-        try:
-            path = _normalize_path(path)
-            folder = dbutils.get_folder(self.db, path)
-            self.db.delete(self.db[folder['_id']])
-            return 0
+        logger.info('rmdir %s' % path)
+        return errno.EACCES
+        #try:
+            #path = _normalize_path(path)
+            #folder = dbutils.get_folder(self.db, path)
+            #self.db.delete(self.db[folder['_id']])
+            #return 0
 
-        except Exception as e:
-            logger.exception(e)
-            return -errno.ENOENT
+        #except Exception as e:
+            #logger.exception(e)
+            #return -errno.ENOENT
 
     def rename(self, pathfrom, pathto, root=True):
         """
-        Rename file and subfiles (if it's a folder) in database.
+        Rename file and subfiles (if it's a folder) in device.
         """
-        logger.info("path rename %s -> %s: " % (pathfrom, pathto))
-        pathfrom = _normalize_path(pathfrom)
-        pathto = _normalize_path(pathto)
+        logger.info('rename %s' % pathfrom)
+        return errno.EACCES
+        #logger.info("path rename %s -> %s: " % (pathfrom, pathto))
+        #pathfrom = _normalize_path(pathfrom)
+        #pathto = _normalize_path(pathto)
 
-        for doc in self.db.view("file/byFullPath", key=pathfrom):
-            doc = doc.value
-            (file_path, name) = _path_split(pathto)
-            doc.update({
-                "name": name,
-                "path": file_path,
-                "lastModification": get_current_date(
-                )})
-            self.db.save(doc)
-            if root:
-                self._update_parent_folder(file_path)
-                # Change lastModification for file_path_from in case of file
-                # was moved
-                (file_path_from, name) = _path_split(pathfrom)
-                self._update_parent_folder(file_path_from)
-            return 0
+        #for doc in self.db.view("file/byFullPath", key=pathfrom):
+            #doc = doc.value
+            #(file_path, name) = _path_split(pathto)
+            #doc.update({
+                #"name": name,
+                #"path": file_path,
+                #"lastModification": get_current_date(
+                #)})
+            #self.db.save(doc)
+            #if root:
+                #self._update_parent_folder(file_path)
+                ## Change lastModification for file_path_from in case of file
+                ## was moved
+                #(file_path_from, name) = _path_split(pathfrom)
+                #self._update_parent_folder(file_path_from)
+            #return 0
 
-        for doc in self.db.view("folder/byFullPath", key=pathfrom):
-            doc = doc.value
-            (file_path, name) = _path_split(pathto)
-            doc.update({
-                "name": name,
-                "path": file_path,
-                "lastModification": get_current_date()
-            })
+        #for doc in self.db.view("folder/byFullPath", key=pathfrom):
+            #doc = doc.value
+            #(file_path, name) = _path_split(pathto)
+            #doc.update({
+                #"name": name,
+                #"path": file_path,
+                #"lastModification": get_current_date()
+            #})
 
-            # Rename all subfiles
-            for res in self.db.view("file/byFolder", key=pathfrom):
-                child_pathfrom = os.path.join(
-                    res.value['path'],
-                    res.value['name'])
-                child_pathto = os.path.join(file_path, name, res.value['name'])
-                self.rename(child_pathfrom, child_pathto, False)
+            ## Rename all subfiles
+            #for res in self.db.view("file/byFolder", key=pathfrom):
+                #child_pathfrom = os.path.join(
+                    #res.value['path'],
+                    #res.value['name'])
+                #child_pathto = os.path.join(file_path, name, res.value['name'])
+                #self.rename(child_pathfrom, child_pathto, False)
 
-            for res in self.db.view("folder/byFolder", key=pathfrom):
-                child_pathfrom = os.path.join(
-                    res.value['path'],
-                    res.value['name'])
-                child_pathto = os.path.join(file_path, name, res.value['name'])
-                self.rename(child_pathfrom, child_pathto, False)
+            #for res in self.db.view("folder/byFolder", key=pathfrom):
+                #child_pathfrom = os.path.join(
+                    #res.value['path'],
+                    #res.value['name'])
+                #child_pathto = os.path.join(file_path, name, res.value['name'])
+                #self.rename(child_pathfrom, child_pathto, False)
 
-            if root:
-                self._update_parent_folder(file_path)
-                # Change lastModification for file_path_from in case of file
-                # was moved
-                (file_path_from, name) = _path_split(pathfrom)
-                self._update_parent_folder(file_path_from)
+            #if root:
+                #self._update_parent_folder(file_path)
+                ## Change lastModification for file_path_from in case of file
+                ## was moved
+                #(file_path_from, name) = _path_split(pathfrom)
+                #self._update_parent_folder(file_path_from)
 
-            self.db.save(doc)
-            return 0
+            #self.db.save(doc)
+            #return 0
 
     def fsync(self, path, isfsyncfile):
         """ TODO: look if something should be done there. """
@@ -538,7 +554,7 @@ class CouchFSDocument(fuse.Fuse):
         the kernel that the info is not available.
         """
         disk_space = dbutils.get_disk_space(
-            self.database,
+            self.device,
             self.urlCozy,
             self.loginCozy,
             self.passwordCozy)
@@ -633,4 +649,5 @@ def mount(name, path):
     logger.info('Attempt to mount %s' % path)
     fs = CouchFSDocument(name, path, 'http://localhost:5984/%s' % name)
     fs.multithreaded = 0
+    logger.info('CouchDB Fuse configured for %s' % path)
     fs.main()

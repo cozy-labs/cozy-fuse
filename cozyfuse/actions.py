@@ -4,6 +4,7 @@ import errno
 import getpass
 import requests
 import json
+import binarycache
 
 import couchmount
 import replication
@@ -68,9 +69,9 @@ def remove_device_remotely(name, password=None):
     Delete given device form target Cozy.
     '''
     (url, path) = local_config.get_config(name)
-    (device_id, password) = local_config.get_device_config(name)
+    (device_id, device_password) = local_config.get_device_config(name)
     if password is None:
-        password = getpass.getpass('Type your Cozy password to register your '
+        password = getpass.getpass('Type your Cozy password to remove your '
                                    'device remotely:\n')
     remote.remove_device(url, device_id, password)
 
@@ -145,7 +146,9 @@ def remove_device(device):
     dbutils.remove_db(device)
     dbutils.remove_db_user(device)
 
+    # Remove device from config file
     local_config.remove_config(device)
+
     print 'Configuration %s successfully removed.' % device
 
 
@@ -233,6 +236,111 @@ def unset_default(devices=[]):
 
     for name in devices:
         local_config.set_default_device_config(name, False)
+
+
+def cache_file(device, path, add=True):
+    '''
+    Download target file from remote Cozy to local cache.
+    '''
+
+    # Get configuration.
+    (device_url, device_mount_path) = local_config.get_config(device)
+    (device_id, device_password) = local_config.get_device_config(device)
+    (db_username, db_password) = local_config.get_db_credentials(device)
+
+    # Built target device url.
+    device_url = "http://%s:%s@localhost:5984/%s" % (
+        db_username,
+        db_password,
+        device
+    )
+
+    # Ensure that path corresponds to a mounted file.
+    abs_path = os.path.abspath(path)
+    device_mount_path = os.path.abspath(device_mount_path)
+    device_mount_path_len = len(device_mount_path)
+    device_config_path = os.path.join(local_config.CONFIG_FOLDER, device)
+    path = abs_path[device_mount_path_len:]
+    path = couchmount._normalize_path(path)
+
+    print "Start %s caching." % abs_path
+    if abs_path[:device_mount_path_len] == device_mount_path:
+        binary_cache = binarycache.BinaryCache(
+            device, device_config_path, device_url, device_mount_path)
+        if add:
+            binary_cache.add(path)
+            print "File %s successfully cached." % abs_path
+        else:
+            binary_cache.remove(path)
+            print "File %s successfully uncached." % abs_path
+
+    else:
+        print "Wrong path, that doesn't match any file in your device folder"
+
+
+def uncache_file(device, path):
+    '''
+    Remove target file from local cache.
+    '''
+    cache_file(device, path, False)
+
+
+def cache_folder(device, path, add=True):
+    '''
+    Download target file from remote Cozy to local folder.
+    '''
+
+    # Get configuration.
+    (device_url, device_mount_path) = local_config.get_config(device)
+    (device_id, device_password) = local_config.get_device_config(device)
+    (db_username, db_password) = local_config.get_db_credentials(device)
+
+    # Built target device url.
+    device_url = "http://%s:%s@localhost:5984/%s" % (
+        db_username,
+        db_password,
+        device
+    )
+
+    # Ensure that path corresponds to a mounted folder.
+    abs_path = os.path.abspath(path)
+    device_mount_path = os.path.abspath(device_mount_path)
+    device_mount_path_len = len(device_mount_path)
+    device_config_path = os.path.join(local_config.CONFIG_FOLDER, device)
+
+    if add:
+        print "Start %s caching folder." % abs_path
+    else:
+        print "Start %s uncaching folder." % abs_path
+
+    if abs_path[:device_mount_path_len] == device_mount_path:
+
+        # Cache object
+        binary_cache = binarycache.BinaryCache(
+            device, device_config_path, device_url, device_mount_path)
+
+        # Walk through given folder and run cache operation on each file found.
+        for (dirpath, dirnames, filenames) in os.walk(abs_path):
+            for filename in filenames:
+                file_path = os.path.join(dirpath, filename)
+                file_path = file_path[device_mount_path_len:]
+                file_path = couchmount._normalize_path(file_path)
+
+                if add:
+                    binary_cache.add(file_path)
+                    print "File %s successfully cached." % file_path
+                else:
+                    binary_cache.remove(file_path)
+                    print "File %s successfully uncached." % file_path
+    else:
+        print 'This is not a folder synchronized with your Cozy'
+
+
+def uncache_folder(device, path):
+    '''
+    Remove target folder from local cache.
+    '''
+    cache_folder(device, path, False)
 
 
 def display_config():

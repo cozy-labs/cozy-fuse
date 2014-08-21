@@ -205,6 +205,11 @@ def init_database_view(docType, db):
                     }
                   }""" % docType
             }
+        },
+        "filters": {
+            "all": """function (doc, req) {
+                          return doc.docType === \"%s\"
+                      }""" % docType
         }
     }
 
