@@ -1,6 +1,6 @@
 import datetime
 
-VALIDITY_PERIOD = datetime.timedelta(seconds=30 * 60)
+VALIDITY_PERIOD = datetime.timedelta(seconds=30)
 
 
 class Cache:
@@ -8,7 +8,7 @@ class Cache:
     def __init__(self, validity_period=VALIDITY_PERIOD):
         self._cache = {}
         self._timestamps = {}
-        self.validity_period = VALIDITY_PERIOD
+        self.validity_period = validity_period
 
     def get(self, key):
         now = datetime.datetime.now()

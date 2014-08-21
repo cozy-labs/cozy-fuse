@@ -23,6 +23,8 @@ import dbutils
 import binarycache
 import local_config
 
+ATTR_VALIDITY_PERIOD = datetime.timedelta(seconds=10)
+
 DEVNULL = open(os.devnull, 'wb')
 
 fuse.fuse_python_api = (0, 2)
@@ -138,9 +140,9 @@ class CouchFSDocument(fuse.Fuse):
             device_name, device_path, self.rep_source, mountpoint)
 
         self.file_size_cache = cache.Cache()
-        self.attr_cache = cache.Cache()
-        self.readdir_file_cache = cache.Cache()
-        self.readdir_folder_cache = cache.Cache()
+        self.attr_cache = cache.Cache(ATTR_VALIDITY_PERIOD)
+        self.readdir_file_cache = cache.Cache(ATTR_VALIDITY_PERIOD)
+        self.readdir_folder_cache = cache.Cache(ATTR_VALIDITY_PERIOD)
         logger.info('- Cache configured')
 
     def readdir(self, path, offset):
@@ -304,7 +306,7 @@ class CouchFSDocument(fuse.Fuse):
             to an open file: all file descriptors are closed and
             all memory mappings are unmapped.
         """
-        logger.info('release %s' % path)
+        #logger.info('release %s' % path)
 
         return 0
         try:

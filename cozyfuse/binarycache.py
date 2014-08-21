@@ -1,13 +1,10 @@
 import os
 import shutil
 import requests
-import datetime
 
 import dbutils
 import cache
 
-
-ATTR_VALIDITY_PERIOD = datetime.timedelta(seconds=5 * 60)
 
 class BinaryCache:
     '''
@@ -25,7 +22,7 @@ class BinaryCache:
         self.cache_path = os.path.join(device_config_path, 'cache')
         self.device_mount_path = device_mount_path
         self.db = dbutils.get_db(self.name)
-        self.metadata_cache = cache.Cache(ATTR_VALIDITY_PERIOD)
+        self.metadata_cache = cache.Cache()
 
         if not os.path.isdir(self.cache_path):
             os.makedirs(self.cache_path)
