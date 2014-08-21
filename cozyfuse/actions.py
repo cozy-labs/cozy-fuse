@@ -247,12 +247,13 @@ def cache_file(device, path):
     # Get configuration.
     (device_url, device_mount_path) = local_config.get_config(device)
     (device_id, device_password) = local_config.get_device_config(device)
+    (db_username, db_password) = local_config.get_db_credentials(device)
 
     # Built target device url.
-    device_url = "https://%s:%s@%s/cozy" % (
-        device,
-        device_password,
-        device_url.split('/')[2]
+    device_url = "http://%s:%s@localhost:5984/%s" % (
+        db_username,
+        db_password,
+        device
     )
 
     # Ensure that path corresponds to a mounted file.
@@ -263,7 +264,6 @@ def cache_file(device, path):
 
     print "Start %s caching." % abs_path
     if abs_path[:device_mount_path_len] == device_mount_path:
-
         binary_cache = filecache.BinaryCache(
             device, device_config_path, device_url, device_mount_path)
         binary_cache.cache_file_by_path(path)
@@ -282,12 +282,13 @@ def cache_folder(device, path):
     # Get configuration.
     (device_url, device_mount_path) = local_config.get_config(device)
     (device_id, device_password) = local_config.get_device_config(device)
+    (db_username, db_password) = local_config.get_db_credentials(device)
 
     # Built target device url.
-    device_url = "https://%s:%s@%s/cozy" % (
-        device,
-        device_password,
-        device_url.split('/')[2]
+    device_url = "http://%s:%s@localhost:5984/%s" % (
+        db_username,
+        db_password,
+        device
     )
 
     # Ensure that path corresponds to a mounted folder.

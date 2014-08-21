@@ -21,7 +21,7 @@ class BinaryCache:
         self.device_mount_path = device_mount_path
 
         if not os.path.isdir(self.cache_path):
-            os.mkdir(self.cache_path)
+            os.makedirs(self.cache_path)
 
     def get_binary(self, binary_id, file_doc):
         '''
@@ -47,6 +47,10 @@ class BinaryCache:
             with open(filename, 'wb') as fd:
                 for chunk in req.iter_content(1024):
                     fd.write(chunk)
+
+        file_doc['size'] = os.path.getsize(filename)
+        db = dbutils.get_db(self.name)
+        db.save(file_doc)
 
         return open(filename, 'rb')
 

@@ -74,7 +74,7 @@ def remove_config(name):
     folder = os.path.join(CONFIG_FOLDER, name)
     if os.path.isdir(folder):
         # Remove cache folder
-        shutil.rmtree(os.path.join(CONFIG_FOLDER, name), true)
+        shutil.rmtree(os.path.join(CONFIG_FOLDER, name), True)
     logger.info('[Config] Configuration for %s removed' % name)
 
 

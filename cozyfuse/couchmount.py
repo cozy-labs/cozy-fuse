@@ -138,7 +138,7 @@ class CouchFSDocument(fuse.Fuse):
         self.writeBuffers = {}
         device_path = os.path.join(CONFIG_FOLDER, device_name)
         self.binary_cache =  filecache.BinaryCache(
-            device_name, device_path, self.rep_target, mountpoint)
+            device_name, device_path, self.rep_source, mountpoint)
         logger.info('- Cache configured')
 
     def readdir(self, path, offset):
@@ -147,7 +147,6 @@ class CouchFSDocument(fuse.Fuse):
         it arrives.
         """
         path = _normalize_path(path)
-        logger.info('readdir %s' % path)
 
         # this two folders are conventional in Unix system.
         for directory in '.', '..':
@@ -197,8 +196,6 @@ class CouchFSDocument(fuse.Fuse):
                     if file_doc is not None:
                         st.st_mode = stat.S_IFREG | 0o664
                         st.st_nlink = 1
-                        # TODO: if size is not set, get the binary
-                        # and save the information.
                         st.st_size = file_doc.get('size', 4096)
                         if 'lastModification' in file_doc:
                             st.st_atime = \
@@ -243,7 +240,7 @@ class CouchFSDocument(fuse.Fuse):
         Extract it from remote Cozy and save it in a cache folder.
             path {string}: file path
             size {integer}: size of file part to read
-            offset {integer}: beginning of file part to read
+            offset {integer}=: beginning of file part to read
         """
         # TODO: do not load the file for each chunk.
         # Save it in a cache file maybe?
@@ -259,7 +256,7 @@ class CouchFSDocument(fuse.Fuse):
                 return -errno.ENOENT
 
             else:
-                if self.device not in file_doc['storage']:
+                if not 'storage' in file_doc or self.device not in file_doc['storage']:
                     self.binary_cache.mark_file_as_stored(
                         self.db, file_doc, self.device)
 
