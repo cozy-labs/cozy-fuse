@@ -7,7 +7,7 @@ import logging
 import local_config
 
 
-from couchdb import Server
+from couchdb import Server, http
 from couchdb.http import PreconditionFailed, ResourceConflict
 
 logger = logging.getLogger(__name__)
@@ -73,7 +73,10 @@ def remove_db(database):
     Destroy given database.
     '''
     server = Server('http://localhost:5984/')
-    server.delete(database)
+    try:
+        server.delete(database)
+    except http.ResourceNotFound:
+        logger.info('[DB] Local database %s already removed' % database)
     logger.info('[DB] Local database %s removed' % database)
 
 
