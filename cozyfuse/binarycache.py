@@ -20,8 +20,9 @@ class BinaryCache:
         self.name = name
         self.device_config_path = device_config_path
         self.remote_url = remote_url
-        self.cache_path = os.path.join(device_config_path, 'cache')
         self.device_mount_path = device_mount_path
+
+        self.cache_path = os.path.join(device_config_path, 'cache')
         self.db = dbutils.get_db(self.name)
         self.metadata_cache = cache.Cache()
 
@@ -76,8 +77,8 @@ class BinaryCache:
         url = '%s/%s/%s' % (self.remote_url, binary_id, 'file')
         req = requests.get(url, stream=True)
         if req.status_code != 200:
-            raise exceptions.IOException(
-                "File not stored in the local CouchDB database")
+            raise exceptions.IOError(
+                "File not stored in the local CouchDB database %s" % url)
         else:
             with open(filename, 'wb') as fd:
                 for chunk in req.iter_content(1024):
