@@ -323,8 +323,8 @@ def sync(devices=[]):
         print 'Continuous replications started.'
         print 'Running daemon for binary synchronization...'
         try:
-            context = local_config.get_daemon_context(name, 'sync')
-            with context:
-                replication.BinaryReplication(name)
+            #context = local_config.get_daemon_context(name, 'sync')
+            #with context:
+            replication.BinaryReplication(name)
         except KeyboardInterrupt:
             print ' Binary Synchronization interrupted.'

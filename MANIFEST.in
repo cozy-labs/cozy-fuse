@@ -1,1 +1,1 @@
-recursive-include cozy-fuse *
+recursive-include cozyfuse *.png

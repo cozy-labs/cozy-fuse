@@ -5,6 +5,7 @@ import sys
 
 import actions
 import local_config
+from cozyfuse.interface import app
 
 from argparse import RawTextHelpFormatter
 from yaml import load
@@ -14,9 +15,13 @@ from yaml import load
 class DefaultHelpParser(argparse.ArgumentParser):
 
     def error(self, message):
-        sys.stderr.write('error: %s\n' % message)
-        self.print_help()
-        sys.exit(2)
+        if len(sys.argv) == 1:
+            print 'Launching graphical client...'
+            app.start()
+        else:
+            sys.stderr.write('error: %s\n' % message)
+            self.print_help()
+            sys.exit(2)
 
 
 def DeviceCompleter(prefix, **kwargs):

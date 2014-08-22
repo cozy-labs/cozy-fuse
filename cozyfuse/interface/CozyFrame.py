@@ -17,6 +17,12 @@ import cozyfuse.local_config
 from CozyError import CozyError
 # end wxGlade
 
+def getProgramFolder():
+    moduleFile = __file__
+    moduleDir = os.path.split(os.path.abspath(moduleFile))[0]
+    programFolder = os.path.abspath(moduleDir)
+    return programFolder
+
 def show_error(msg):
     error = CozyError(None, wx.ID_ANY, "")
     error.error_message.SetLabel(msg)
@@ -66,7 +72,7 @@ class CozyFrame(wx.Dialog):
         # begin wxGlade: CozyFrame.__set_properties
         self.SetTitle(_("Cozy client configuration"))
         _icon = wx.EmptyIcon()
-        _icon.CopyFromBitmap(wx.Bitmap("icon/icon.png", wx.BITMAP_TYPE_ANY))
+        _icon.CopyFromBitmap(wx.Bitmap(os.path.join(getProgramFolder(), "icon/icon.png"), wx.BITMAP_TYPE_ANY))
         self.SetIcon(_icon)
         self.SetSize((400, 430))
         self.label_cozy_url.SetFont(wx.Font(9, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))

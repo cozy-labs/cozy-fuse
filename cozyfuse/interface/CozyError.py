@@ -4,12 +4,18 @@
 #
 
 import wx
+import os
 # begin wxGlade: dependencies
 # end wxGlade
 
 # begin wxGlade: extracode
 # end wxGlade
 
+def getProgramFolder():
+    moduleFile = __file__
+    moduleDir = os.path.split(os.path.abspath(moduleFile))[0]
+    programFolder = os.path.abspath(moduleDir)
+    return programFolder
 
 class CozyError(wx.Dialog):
     def __init__(self, *args, **kwds):
@@ -31,7 +37,7 @@ class CozyError(wx.Dialog):
         # begin wxGlade: CozyError.__set_properties
         self.SetTitle(_("Error"))
         _icon = wx.EmptyIcon()
-        _icon.CopyFromBitmap(wx.Bitmap("icon/icon.png", wx.BITMAP_TYPE_ANY))
+        _icon.CopyFromBitmap(wx.Bitmap(os.path.join(getProgramFolder(), "icon/icon.png"), wx.BITMAP_TYPE_ANY))
         self.SetIcon(_icon)
         self.SetSize((500, 110))
         self.Hide()

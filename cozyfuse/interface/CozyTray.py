@@ -1,12 +1,14 @@
 # -*- coding: UTF-8 -*-
 
 import wx
+import os
 import sys
 
-TRAY_TOOLTIP = 'Cozy'
-TRAY_ICON = 'icon/icon.png'
-SMALL_TRAY_ICON = 'icon/small_icon.png'
+from CozyFrame import getProgramFolder
 
+TRAY_TOOLTIP = 'Cozy'
+TRAY_ICON = os.path.join(getProgramFolder(), "icon/icon.png")
+SMALL_TRAY_ICON = os.path.join(getProgramFolder(), "icon/small_icon.png")
 
 # Helper to add menu item
 def create_menu_item(menu, label, func):
@@ -38,8 +40,9 @@ class CozyTray(wx.TaskBarIcon):
         self.SetIcon(icon, TRAY_TOOLTIP)
 
     def on_left_down(self, event):
-        self.set_icon(SMALL_TRAY_ICON)
-        print 'Tray icon was changed.'
+        pass
+        #self.set_icon(SMALL_TRAY_ICON)
+        #print 'Tray icon was changed.'
 
     def on_configure(self, event):
         # Show dialog window
