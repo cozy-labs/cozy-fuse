@@ -1,6 +1,7 @@
 import os
 import shutil
 import requests
+import exceptions
 
 import dbutils
 import cache
@@ -28,6 +29,10 @@ class BinaryCache:
             os.makedirs(self.cache_path)
 
     def get_file_metadata(self, path):
+        '''
+        Return file metadata based on given path. The corresponding file doc is
+        returned with the linked binary ID and the cached file path.
+        '''
         res = self.metadata_cache.get(path)
         if res is None:
             file_doc = dbutils.get_file(self.db, path)
@@ -70,13 +75,17 @@ class BinaryCache:
         # Download file.
         url = '%s/%s/%s' % (self.remote_url, binary_id, 'file')
         req = requests.get(url, stream=True)
-        with open(filename, 'wb') as fd:
-            for chunk in req.iter_content(1024):
-                fd.write(chunk)
+        if req.status_code != 200:
+            raise exceptions.IOException(
+                "File not stored in the local CouchDB database")
+        else:
+            with open(filename, 'wb') as fd:
+                for chunk in req.iter_content(1024):
+                    fd.write(chunk)
 
-        # Update metadata.
-        file_doc['size'] = os.path.getsize(filename)
-        self.mark_file_as_stored(file_doc)
+            # Update metadata.
+            file_doc['size'] = os.path.getsize(filename)
+            self.mark_file_as_stored(file_doc)
 
     def remove(self, path):
         '''
