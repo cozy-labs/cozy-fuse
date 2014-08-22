@@ -151,6 +151,7 @@ class CouchFSDocument(fuse.Fuse):
         it arrives.
         """
         path = _normalize_path(path)
+        logger.info('readdir %s' % path)
 
         # this two folders are conventional in Unix system.
         for directory in '.', '..':
@@ -175,9 +176,7 @@ class CouchFSDocument(fuse.Fuse):
         Return file descriptor for given_path. Useful for 'ls -la' command
         like.
         """
-        #logger.info('getattr %s' % path)
-        #path = _normalize_path(path)
-        #logger.info('getattr normalized %s' % path)
+        logger.info('getattr %s' % path)
 
         try:
             st = self.attr_cache.get(path)
@@ -216,7 +215,7 @@ class CouchFSDocument(fuse.Fuse):
                                 st.st_mtime = st.st_atime
 
                         else:
-                            print 'File does not exist: %s' % path
+                            logger.info('File does not exist: %s' % path)
                 self.attr_cache.add(path, st)
             return st
 
@@ -230,7 +229,7 @@ class CouchFSDocument(fuse.Fuse):
             path {string}: file path
             flags {string}: opening mode
         """
-        #logger.info('open %s' % path)
+        logger.info('open %s' % path)
         path = _normalize_path(path)
         try:
             res = self.db.view('file/byFullPath', key=path)
@@ -238,7 +237,7 @@ class CouchFSDocument(fuse.Fuse):
                 #logger.info('%s found' % path)
                 return 0
             else:
-                #logger.error('File not found %s' % path)
+                logger.error('File not found %s' % path)
                 return -errno.ENOENT
 
         except Exception as e:
@@ -254,6 +253,7 @@ class CouchFSDocument(fuse.Fuse):
             offset {integer}=: beginning of file part to read
         """
         try:
+            logger.info('read %s' % path)
             path = _normalize_path(path)
 
             if not self.binary_cache.is_cached(path):
@@ -306,7 +306,7 @@ class CouchFSDocument(fuse.Fuse):
             to an open file: all file descriptors are closed and
             all memory mappings are unmapped.
         """
-        #logger.info('release %s' % path)
+        logger.info('release %s' % path)
 
         return 0
         try:

@@ -13,19 +13,13 @@ local_config.CONFIG_PATH = \
     os.path.join(local_config.CONFIG_FOLDER, 'config.yaml')
 
 
-def touch(filename, times=None):
-    with file(filename, 'a'):
-        os.utime(filename, times)
-
-
 @pytest.fixture(scope="module")
 def config_file(request):
+    # Create config folder and YAML file if not exist
     if not os.path.isdir(local_config.CONFIG_FOLDER):
         os.mkdir(local_config.CONFIG_FOLDER)
-
-    if os.path.isfile(local_config.CONFIG_PATH):
-        os.remove(local_config.CONFIG_PATH)
-    touch(local_config.CONFIG_PATH)
+    with open(local_config.CONFIG_PATH, 'a'):
+        os.utime(local_config.CONFIG_PATH, None)
 
 
 def test_get_full_config(config_file):

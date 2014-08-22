@@ -128,7 +128,7 @@ def kill_running_replications():
             print 'Replication %s was not stopped.' % data['replication_id']
 
 
-def remove_device(device):
+def remove_device(device, password=None):
     '''
     Remove device from local and remote configuration by:
 
@@ -140,7 +140,7 @@ def remove_device(device):
     (url, path) = local_config.get_config(device)
 
     couchmount.unmount(path)
-    remove_device_remotely(device)
+    remove_device_remotely(device, password)
 
     # Remove database
     dbutils.remove_db(device)
@@ -433,8 +433,8 @@ def sync(devices=[]):
         print 'Continuous replications started.'
         print 'Running daemon for binary synchronization...'
         try:
-            context = local_config.get_daemon_context(name, 'sync')
-            with context:
-                replication.BinaryReplication(name)
+            #context = local_config.get_daemon_context(name, 'sync')
+            #with context:
+            replication.BinaryReplication(name)
         except KeyboardInterrupt:
             print ' Binary Synchronization interrupted.'

@@ -143,7 +143,8 @@ class BinaryReplication():
         # every 10 seconds, and fetch related binaries if needed.
         while True:
             changes = self.db.changes(since=device['seq'],
-                                      filter='file/all')
+                                      filter='file/all',
+                                      include_docs=True)
 
             binary_ids = []
 
@@ -153,23 +154,23 @@ class BinaryReplication():
                 # Save last sequence number
                 new_seq = line['seq']
 
-                try:
-                    # Find related binary and add its ID to the list
-                    # of files to replicate.
-                    doc = self.db[line['id']]
-                    if self._is_new(line):
-                        logger.info("Creating file %s..." % doc['name'])
-                    else:
-                        logger.info("Updating file %s..." % doc['name'])
-                    if 'binary' in doc:
-                        binary_ids.append(doc['binary']['file']['id'])
-
-                except http.ResourceNotFound:
-                    if self._is_deleted(line):
-                        logger.info("Deleting file %s..." % line['id'])
-                        #TODO: Find document's attachments for previous
-                        # revisions.
-                        continue
+                # Find related binary and add its ID to the list
+                # of files to replicate.
+                doc = line['doc']
+                if self._is_deleted(line):
+                    logger.info("Deleting file %s..." % line['id'])
+                    try:
+                        # Delete file locally
+                        self.db.delete(self.db[doc['binary']['file']['id']])
+                    except http.ResourceNotFound:
+                        # Already deleted
+                        pass
+                elif self._is_new(line):
+                    logger.info("Creating file %s..." % doc['name'])
+                else:
+                    logger.info("Updating file %s..." % doc['name'])
+                if 'binary' in doc:
+                    binary_ids.append(doc['binary']['file']['id'])
 
             # Replicate related binaries
             if len(binary_ids) > 0:

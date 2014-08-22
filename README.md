@@ -18,27 +18,47 @@ On Debian like system you can simply add them via
 On OSX:
 * `brew install couchdb` (Homebrew) or `sudo port install couchdb && sudo port update couchdb && sudo port load couchdb` (MacPorts)
 * Download and install [OSXFuse](http://osxfuse.github.io/)
+* Download and install [wxpython 2.8](http://wiki.wxpython.org/How%20to%20install%20wxPython#Mac_OS_X)
 
 On FreeBSD 10:
-* `sudo pkg install couchdb`
-* `sudo kldload fuse.ko`
+* Install CouchDB and wxPython: `sudo pkg install couchdb py27-wxPython28`
+* Activate FUSE kernel module: `sudo kldload fuse.ko`
 * You will have to run all the cozy-fuse client's command as root in order to make it work properly (for now)
 
 ## Installation
 
 In a console run:
 
-    (sudo) pip install git+https://@github.com/cozy/cozy-fuse.git
+    (sudo) pip install cozy-fuse
+
+Or for the latest development version:
+
+    (sudo) pip install git+https://github.com/cozy/cozy-fuse.git
 
 On OSX, if this error occured: `error: command 'cc' failed with exit status 1`, try again with the following command:
 
     ARCHFLAGS=-Wno-error=unused-command-line-argument-hard-error-in-future pip install git+https://github.com/cozy/cozy-fuse.git
 
-On OSX and FreeBSD, you must start couchdb in a terminal or daemonize it by yourself:
+On OSX and FreeBSD, you must start CouchDB in a terminal or daemonize it by yourself:
 
-    couchdb
+    (sudo) couchdb
 
-Configure your connection with the remote Cozy:
+
+# Graphical client
+
+To run the graphical client, just type:
+
+    cozy-fuse
+
+
+# CLI client
+
+You can manage your synchronized directories with a command-line interface.    
+To check out your options:
+
+    cozy-fuse -h
+
+To configure a new connection with a remote Cozy:
 
     cozy-fuse configure <url_of_your_cozy> <name_of_your_device> <sync_directory>
 
